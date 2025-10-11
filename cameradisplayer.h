@@ -1,0 +1,85 @@
+#pragma once
+
+#include <QObject>
+#include <QImage>
+#include <QVector>
+#include <QSize>
+#include <QCameraDevice>
+
+// Forward declarations
+class QGraphicsView;
+class QGraphicsScene;
+class QGraphicsPixmapItem;
+class QMediaCaptureSession;
+class QVideoSink;
+class QMediaPlayer;
+class QCamera;
+class QComboBox;
+class QLabel;
+class QPushButton;
+class QCheckBox;
+class QVideoFrame;
+
+class CameraDisplayer : public QObject
+{
+    Q_OBJECT
+public:
+    explicit CameraDisplayer(QGraphicsView* graphicsView,
+                             QComboBox* deviceComboBox,
+                             QVector<QLabel*> labels,
+                             QPushButton* captureButton,
+                             QCheckBox* flipCheckBox,
+                             QObject* parent = nullptr);
+    ~CameraDisplayer() override;
+
+    // Show/attach selected camera by combo index (0 = "Select ...")
+    void DisplayVideo(int cameraIndex);
+
+    // Enumerate available cameras and populate combo
+    void ListCameraDevices();
+
+private slots:
+    // Called by QVideoSink for each new frame
+    void ProcessVideoFrame(const QVideoFrame& frame);
+
+    // Save the latest frame as jpg
+    void SaveImage();
+
+private:
+    // Utility: rotate with white background (no transparency)
+    QImage rotateImageWithWhiteBackground(const QImage& src, int angleDegrees);
+
+    // Utility: simplified aspect ratio using gcd
+    QVector<int> CalculateAspectRatioFromResolution(int w, int h);
+
+private:
+    // UI references (not owned by this class)
+    QGraphicsView*       graphicsView_   = nullptr;
+    QComboBox*           deviceComboBox_ = nullptr;
+    QVector<QLabel*>     labels_;
+    QPushButton*         captureButton_  = nullptr;
+    QCheckBox*           flipCheckBox_   = nullptr;
+
+    // Scene graph (owned by Qt via parents)
+    QGraphicsScene*      scene_          = nullptr;
+    QGraphicsPixmapItem* videoPixmapItem_= nullptr;
+
+    // Media pipeline (owned by Qt via parents)
+    QMediaCaptureSession* captureSession_ = nullptr;
+    QVideoSink*           videoSink_      = nullptr;
+    QMediaPlayer*         videoPlayer_    = nullptr;
+    QCamera*              camera_         = nullptr;
+
+    // State
+    QVector<QCameraDevice> cameras_;
+    QVector<QSize>         resolution_;
+    QVector<int>           aspectRatio_{1,1};
+    bool                   isReversing_   = false;
+    QImage                 latestImage_;
+    float                  scaleX_        = 1.0f;
+    float                  scaleY_        = 1.0f;
+
+    // Constants
+    static constexpr int   DISPLAY_SIZE = 600;               // square view size (px)
+    static constexpr const char* PRIMARY_CAMERA_NAME = "USB Camera"; // change if needed
+};
