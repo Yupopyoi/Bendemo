@@ -38,6 +38,8 @@ public:
     // Enumerate available cameras and populate combo
     void ListCameraDevices();
 
+    QImage LatestImage(){return latestImage_;}
+
 private slots:
     // Called by QVideoSink for each new frame
     void ProcessVideoFrame(const QVideoFrame& frame);
@@ -48,6 +50,8 @@ private slots:
 private:
     // Utility: rotate with white background (no transparency)
     QImage rotateImageWithWhiteBackground(const QImage& src, int angleDegrees);
+
+    static QImage letterboxToCanvas(const QImage& src, const QSize& canvasSize);
 
     // Utility: simplified aspect ratio using gcd
     QVector<int> CalculateAspectRatioFromResolution(int w, int h);
@@ -74,12 +78,12 @@ private:
     QVector<QCameraDevice> cameras_;
     QVector<QSize>         resolution_;
     QVector<int>           aspectRatio_{1,1};
-    bool                   isReversing_   = false;
+    bool                   isReversing_{false};
     QImage                 latestImage_;
     float                  scaleX_        = 1.0f;
     float                  scaleY_        = 1.0f;
 
     // Constants
-    static constexpr int   DISPLAY_SIZE = 600;               // square view size (px)
+    static constexpr int CANVAS_SIZE = 600;               // square view size (px)
     static constexpr const char* PRIMARY_CAMERA_NAME = "USB Camera"; // change if needed
 };

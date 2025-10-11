@@ -9,8 +9,16 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
+if(NOT MSVC)
+  message(FATAL_ERROR "MSVC/Qt(msvc2022_64) 用プロジェクトです。\
+  Visual Studio 17 2022 + -A x64 のキットで再構成してください。")
+endif()
+
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
+
+# find dependencies
+find_package(OpenCV CONFIG REQUIRED)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -27,6 +35,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         SerialInterface.cpp
         integratedvaluecontroller.h integratedvaluecontroller.cpp
         cameradisplayer.h cameradisplayer.cpp
+        darknessdetector.h darknessdetector.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Bendemo APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -50,6 +59,19 @@ target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Multimedia)
 target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::SerialPort)
 target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+
+# If OpenCV exports targets (modern), link by imported targets.
+# Otherwise fall back to legacy variables.
+if (TARGET OpenCV::opencv_core)
+    message(STATUS "OpenCV found (CONFIG). Version: ${OpenCV_VERSION}")
+    target_link_libraries(Bendemo PRIVATE OpenCV::opencv_world)
+else()
+    message(STATUS "OpenCV found (MODULE). Version: ${OpenCV_VERSION}")
+    include_directories(${OpenCV_INCLUDE_DIRS})
+    target_link_libraries(Bendemo PRIVATE ${OpenCV_LIBS})
+endif()
+
+qt_standard_project_setup()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

@@ -23,6 +23,8 @@ public:
 
     void setSerialInterface(SerialInterface* ptr){serialInterface = ptr;}
 
+    QImage LatestCameraImage(){return cameraDisplayer_->LatestImage();}
+
 signals:
     void channelChanged(int position, double value);
 

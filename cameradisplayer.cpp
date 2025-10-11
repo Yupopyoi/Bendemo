@@ -45,11 +45,11 @@ CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
     // --- Graphics view / scene ---
     graphicsView_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     graphicsView_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    graphicsView_->setFixedSize(DISPLAY_SIZE, DISPLAY_SIZE);
+    graphicsView_->setFixedSize(CANVAS_SIZE, CANVAS_SIZE);
 
     scene_ = new QGraphicsScene(graphicsView_); // parent = view
     graphicsView_->setScene(scene_);
-    scene_->setSceneRect(-DISPLAY_SIZE, -DISPLAY_SIZE, DISPLAY_SIZE * 2, DISPLAY_SIZE * 2);
+    scene_->setSceneRect(-CANVAS_SIZE/2, -CANVAS_SIZE/2, CANVAS_SIZE, CANVAS_SIZE);
 
     videoPixmapItem_ = new QGraphicsPixmapItem();
     scene_->addItem(videoPixmapItem_);
@@ -146,20 +146,32 @@ void CameraDisplayer::ProcessVideoFrame(const QVideoFrame &frame)
         img = img.mirrored(/*h*/true, /*v*/false);
 
     const int angleDegrees = 0; // change if rotation is needed
-    QImage shown = rotateImageWithWhiteBackground(img, angleDegrees).convertToFormat(QImage::Format_RGB888);
+    QImage rotated = rotateImageWithWhiteBackground(img, angleDegrees)
+                         .convertToFormat(QImage::Format_RGB888);
 
-    // Convert to pixmap and center it
-    QPixmap pixmap = QPixmap::fromImage(shown);
+    QImage canvas = letterboxToCanvas(rotated, QSize(CANVAS_SIZE, CANVAS_SIZE));
+
+    QPixmap pixmap = QPixmap::fromImage(canvas);
     videoPixmapItem_->setPixmap(pixmap);
     videoPixmapItem_->setOffset(-pixmap.width() / 2.0, -pixmap.height() / 2.0);
-    videoPixmapItem_->setPos(0, 0); // scene center
+    videoPixmapItem_->setPos(0, 0);
 
-    // Keep latest for saving
-    latestImage_ = shown;
+    latestImage_ = canvas;
 
-    // For any hit test / scaling math you might need later
-    scaleX_ = static_cast<float>(pixmap.width())  / std::max(1, img.width());
-    scaleY_ = static_cast<float>(pixmap.height()) / std::max(1, img.height());
+    const QSize target = rotated.size().scaled(QSize(CANVAS_SIZE, CANVAS_SIZE), Qt::KeepAspectRatio);
+    scaleX_ = static_cast<float>(target.width())  / std::max(1, rotated.width());
+    scaleY_ = static_cast<float>(target.height()) / std::max(1, rotated.height());
+}
+
+void CameraDisplayer::SaveImage()
+{
+    const QString ts = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"); // no ':' for Windows
+    const QString fileName = "../SavedImages/" + ts + ".jpg";
+    if (latestImage_.save(fileName, "JPG")) {
+        qDebug() << "[INFO] Saved Image :" << fileName;
+    } else {
+        qDebug() << "[ERROR] Failed to Save Image :" << fileName;
+    }
 }
 
 QImage CameraDisplayer::rotateImageWithWhiteBackground(const QImage& src, const int angleDegrees)
@@ -187,15 +199,24 @@ QImage CameraDisplayer::rotateImageWithWhiteBackground(const QImage& src, const 
     return result;
 }
 
-void CameraDisplayer::SaveImage()
+// Create a 600x600 white canvas and draw 'src' centered, scaled with aspect ratio preserved
+QImage CameraDisplayer::letterboxToCanvas(const QImage& src, const QSize& canvasSize)
 {
-    const QString ts = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"); // no ':' for Windows
-    const QString fileName = "../SavedImages/" + ts + ".jpg";
-    if (latestImage_.save(fileName, "JPG")) {
-        qDebug() << "[INFO] Saved Image :" << fileName;
-    } else {
-        qDebug() << "[ERROR] Failed to Save Image :" << fileName;
-    }
+    QImage canvas(canvasSize, QImage::Format_RGB32);
+    canvas.fill(Qt::white);
+
+    if (src.isNull()) return canvas;
+
+    const QSize target = src.size().scaled(canvasSize, Qt::KeepAspectRatio);
+    const int x = (canvasSize.width()  - target.width())  / 2;
+    const int y = (canvasSize.height() - target.height()) / 2;
+
+    QPainter p(&canvas);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    p.drawImage(QRect(x, y, target.width(), target.height()), src);
+    p.end();
+
+    return canvas;
 }
 
 QVector<int> CameraDisplayer::CalculateAspectRatioFromResolution(int w, int h)

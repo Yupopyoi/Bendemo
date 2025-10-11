@@ -87,3 +87,6 @@ CMakeLists.txt.user*
 
 # ml model
 *.pth
+
+# opencv
+/vcpkg*/
