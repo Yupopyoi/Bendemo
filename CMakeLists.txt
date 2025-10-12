@@ -16,6 +16,7 @@ endif()
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
+find_package(Qt6 REQUIRED COMPONENTS OpenGLWidgets)
 
 # find dependencies
 find_package(OpenCV CONFIG REQUIRED)
@@ -60,6 +61,7 @@ target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Multimedia)
 target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::SerialPort)
 target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::OpenGLWidgets)
 
 # If OpenCV exports targets (modern), link by imported targets.
 # Otherwise fall back to legacy variables.

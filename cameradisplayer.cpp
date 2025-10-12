@@ -19,8 +19,9 @@
 #include <QTransform>
 #include <QDateTime>
 #include <QDebug>
+#include <QOpenGLWidget>
 
-#include <numeric>  // std::gcd
+#include <numeric>
 #include <algorithm>
 
 CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
@@ -36,22 +37,34 @@ CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
     captureButton_(captureButton),
     flipCheckBox_(flipCheckBox)
 {
-    // --- Media objects (Qt will own/delete them via parent) ---
+    // --- Media objects ---
     captureSession_ = new QMediaCaptureSession(this);
     videoSink_      = new QVideoSink(this);
     videoPlayer_    = new QMediaPlayer(this);
     videoPlayer_->setVideoSink(videoSink_);
 
-    // --- Graphics view / scene ---
+    // --- Graphics view / scene（軽量化） ---
     graphicsView_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     graphicsView_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     graphicsView_->setFixedSize(CANVAS_SIZE, CANVAS_SIZE);
 
+    // ★ GPU 描画を有効化（これだけで体感が大きく上がる）
+    graphicsView_->setViewport(new QOpenGLWidget());
+    graphicsView_->setRenderHints({}); // 余計なヒントは外す（必要になったら個別にON）
+    graphicsView_->setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
+
     scene_ = new QGraphicsScene(graphicsView_); // parent = view
     graphicsView_->setScene(scene_);
+    // 原点を中央に（あなたの既存仕様を維持）
     scene_->setSceneRect(-CANVAS_SIZE/2, -CANVAS_SIZE/2, CANVAS_SIZE, CANVAS_SIZE);
 
+    // 背景は白（レターボックスの白塗りを画像生成でやらず、背景描画に任せる）
+    scene_->setBackgroundBrush(Qt::white);
+
+    // 映像表示アイテム（GPU側でスケール）
     videoPixmapItem_ = new QGraphicsPixmapItem();
+    videoPixmapItem_->setTransformationMode(Qt::FastTransformation); // ★高速補間
+    videoPixmapItem_->setZValue(0);
     scene_->addItem(videoPixmapItem_);
 
     // --- Populate devices ---
@@ -71,7 +84,7 @@ CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
             this, [this](){ isReversing_ = flipCheckBox_->isChecked(); });
 
     // --- Initial selection: prefer PRIMARY, fallback to first real device ---
-    int idx = 0; // 0 = "Select ..."
+    int idx = 0;
     for (int i = 0; i < cameras_.size(); ++i) {
         if (cameras_[i].description() == PRIMARY_CAMERA_NAME) { idx = i + 1; break; }
     }
@@ -83,7 +96,7 @@ CameraDisplayer::~CameraDisplayer()
 {
     if (camera_) {
         camera_->stop();
-        camera_->deleteLater();   // safety if still owned by QObject tree
+        camera_->deleteLater();
         camera_ = nullptr;
     }
 }
@@ -96,7 +109,6 @@ void CameraDisplayer::DisplayVideo(const int cameraIndex)
         camera_ = nullptr;
     }
 
-    // 0: "Select Camera Device or Video"
     if (cameraIndex <= 0 || cameraIndex > cameras_.size())
         return;
 
@@ -107,7 +119,7 @@ void CameraDisplayer::DisplayVideo(const int cameraIndex)
 
     camera_->start();
 
-    // Labels: resolution/aspect (guard for empty list)
+    // Labels: resolution/aspect
     resolution_ = camera_->cameraDevice().photoResolutions();
     if (!resolution_.isEmpty()) {
         const QSize r0 = resolution_.front();
@@ -137,35 +149,60 @@ void CameraDisplayer::ListCameraDevices()
     deviceComboBox_->blockSignals(false);
 }
 
-void CameraDisplayer::ProcessVideoFrame(const QVideoFrame &frame)
+void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
 {
-    QImage img = frame.toImage();
+    // ---- 軽量化の肝：CPU側の画像生成を最小限に ----
+    QVideoFrame f(frame);
+    if (!f.isValid()) return;
+
+    // 可能なら map() + 参照 QImage でゼロコピーに近づける
+    QImage img;
+    if (f.map(QVideoFrame::ReadOnly)) {
+        const QImage::Format fmt = QVideoFrameFormat::imageFormatFromPixelFormat(f.pixelFormat());
+        if (fmt != QImage::Format_Invalid) {
+            img = QImage(f.bits(0), f.width(), f.height(), f.bytesPerLine(0), fmt).copy(); // ★安全のため最小コピー
+        }
+        f.unmap();
+    }
+    // map できない/非対応フォーマット → 素直に toImage()（Qt 内部での最小コピー）
+    if (img.isNull())
+        img = frame.toImage();
+
     if (img.isNull()) return;
 
-    if (isReversing_)
-        img = img.mirrored(/*h*/true, /*v*/false);
+    if (isReversing_) img = img.mirrored(true, false);
 
-    const int angleDegrees = 0; // change if rotation is needed
-    QImage rotated = rotateImageWithWhiteBackground(img, angleDegrees)
-                         .convertToFormat(QImage::Format_RGB888);
+    // 回転が 0 なら一切回さない（不要な全画素処理を回避）
+    const int angleDegrees = 0;
+    if (angleDegrees % 360 != 0) {
+        img = rotateImageWithWhiteBackground(img, angleDegrees);
+    }
 
-    QImage canvas = letterboxToCanvas(rotated, QSize(CANVAS_SIZE, CANVAS_SIZE));
+    // ★ レターボックス用の 600x600 画像は作らない。GPUで拡縮表示する。
+    QPixmap pix = QPixmap::fromImage(img);
 
-    QPixmap pixmap = QPixmap::fromImage(canvas);
-    videoPixmapItem_->setPixmap(pixmap);
-    videoPixmapItem_->setOffset(-pixmap.width() / 2.0, -pixmap.height() / 2.0);
+    // 600x600 中央に KeepAspectRatio でフィット（GPUスケーリング）
+    const qreal canvasW = CANVAS_SIZE, canvasH = CANVAS_SIZE;
+    const qreal sx = canvasW / pix.width();
+    const qreal sy = canvasH / pix.height();
+    const qreal scale = std::min(sx, sy);
+
+    videoPixmapItem_->setPixmap(pix);
+    videoPixmapItem_->setScale(scale);
     videoPixmapItem_->setPos(0, 0);
+    videoPixmapItem_->setOffset(-pix.width() / 2.0, -pix.height() / 2.0);
 
-    latestImage_ = canvas;
+    // 検出/保存用の最新フレーム（加工前の生画像）
+    latestImage_ = img;
 
-    const QSize target = rotated.size().scaled(QSize(CANVAS_SIZE, CANVAS_SIZE), Qt::KeepAspectRatio);
-    scaleX_ = static_cast<float>(target.width())  / std::max(1, rotated.width());
-    scaleY_ = static_cast<float>(target.height()) / std::max(1, rotated.height());
+    // BBox との整合用（必要に応じて利用）
+    scaleX_ = float(scale);
+    scaleY_ = float(scale);
 }
 
 void CameraDisplayer::SaveImage()
 {
-    const QString ts = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss"); // no ':' for Windows
+    const QString ts = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
     const QString fileName = "../SavedImages/" + ts + ".jpg";
     if (latestImage_.save(fileName, "JPG")) {
         qDebug() << "[INFO] Saved Image :" << fileName;
@@ -173,6 +210,8 @@ void CameraDisplayer::SaveImage()
         qDebug() << "[ERROR] Failed to Save Image :" << fileName;
     }
 }
+
+// --- 以下は既存関数名を維持（中では可能な限り軽量化） ---
 
 QImage CameraDisplayer::rotateImageWithWhiteBackground(const QImage& src, const int angleDegrees)
 {
@@ -194,18 +233,29 @@ QImage CameraDisplayer::rotateImageWithWhiteBackground(const QImage& src, const 
     p.rotate(angleDegrees);
     p.translate(-src.width() / 2.0, -src.height() / 2.0);
     p.drawImage(0, 0, src);
-    p.end();
-
+    // p.end(); // 自動
     return result;
 }
 
-// Create a 600x600 white canvas and draw 'src' centered, scaled with aspect ratio preserved
 QImage CameraDisplayer::letterboxToCanvas(const QImage& src, const QSize& canvasSize)
 {
+    // 互換性のため残すが、通常は呼ばない運用に切替。
+    // どうしても必要な場合のみ最小コストで実施。
+
+    if (src.isNull()) {
+        QImage c(canvasSize, QImage::Format_RGB32);
+        c.fill(Qt::white);
+        return c;
+    }
+
+    // 既に同じサイズ＆余白不要ならそのまま返す（コピー回避）
+    if (src.size() == canvasSize) {
+        return src;
+    }
+
+    // 1回の描画で完了（白紙→スケーリング描画）
     QImage canvas(canvasSize, QImage::Format_RGB32);
     canvas.fill(Qt::white);
-
-    if (src.isNull()) return canvas;
 
     const QSize target = src.size().scaled(canvasSize, Qt::KeepAspectRatio);
     const int x = (canvasSize.width()  - target.width())  / 2;
@@ -214,8 +264,6 @@ QImage CameraDisplayer::letterboxToCanvas(const QImage& src, const QSize& canvas
     QPainter p(&canvas);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
     p.drawImage(QRect(x, y, target.width(), target.height()), src);
-    p.end();
-
     return canvas;
 }
 
