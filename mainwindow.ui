@@ -287,6 +287,28 @@
        <height>20</height>
       </size>
      </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="dbboxDispCheckBox">
+     <property name="geometry">
+      <rect>
+       <x>40</x>
+       <y>160</y>
+       <width>341</width>
+       <height>40</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Display Darkness Detected Box</string>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>20</width>
+       <height>20</height>
+      </size>
+     </property>
     </widget>
    </widget>
   </widget>

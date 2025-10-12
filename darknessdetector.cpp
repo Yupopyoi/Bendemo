@@ -98,13 +98,13 @@ DarknessDetector::~DarknessDetector()
 
 // ======================== Synchronous API ========================
 
-QVector<DetectedObject> DarknessDetector::detect(const QImage& image,
+QVector<Detector::DetectedObject> DarknessDetector::detect(const QImage& image,
                                                  float minAreaRatio,
                                                  int blackThreshold,
                                                  int whiteMaskTopPct,
                                                  int whiteMaskRightLeftPct) const
 {
-    QVector<DetectedObject> out;
+    QVector<Detector::DetectedObject> out;
     if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
         qWarning() << "[DarknessDetector] Invalid image.";
         return out;
@@ -248,7 +248,7 @@ void DarknessDetector::tryProcess_()
     pending_ = false;
 
     // Run sync detection on the worker thread
-    QVector<DetectedObject> res = detect(latest_, minAreaRatio_, blackThreshold_, whiteTopPct_, whiteRlPct_);
+    QVector<Detector::DetectedObject> res = detect(latest_, minAreaRatio_, blackThreshold_, whiteTopPct_, whiteRlPct_);
 
     // Emit to whoever connected (likely UI thread via queued connection)
     emit detectionReady(res, latest_, scaleX_, scaleY_);

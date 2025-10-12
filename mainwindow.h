@@ -3,7 +3,9 @@
 
 #include <QMainWindow>
 
+#include "bbox_renderer.h"
 #include "CameraDisplayer.h"
+#include "DarknessDetector.h"
 #include "IntegratedValueController.h"
 #include "SerialInterface.h"
 
@@ -24,6 +26,7 @@ public:
     void setSerialInterface(SerialInterface* ptr){serialInterface = ptr;}
 
     QImage LatestCameraImage(){return cameraDisplayer_->LatestImage();}
+    void DrawDetectedBox(QVector<Detector::DetectedObject> obj);
 
 signals:
     void channelChanged(int position, double value);
@@ -31,7 +34,8 @@ signals:
 private:
     Ui::MainWindow *ui;
     SerialInterface* serialInterface{nullptr};
-    CameraDisplayer* cameraDisplayer_ = nullptr;
+    CameraDisplayer* cameraDisplayer_{nullptr};
+    BBoxRenderer* bboxRenderer_{nullptr};
 
     IntegratedValueController* outerTubeVController{nullptr};
     IntegratedValueController* outerTubeHController{nullptr};

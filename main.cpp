@@ -4,13 +4,16 @@
 #include <QDebug>
 #include <QTimer>
 
+#include "darknessdetector.h"
 #include "SerialInterface.h"
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    QApplication app(argc, argv);
     MainWindow mainWindow;
     mainWindow.show();
+
+    // =========================================== Serial Communication ===========================================
 
     SerialInterface serialInterface(30, 22);
 
@@ -36,16 +39,42 @@ int main(int argc, char *argv[])
 
     mainWindow.setSerialInterface(&serialInterface);
 
+    // =========================================== Darkness Detector ===========================================
+
+    auto darknessDetector = new DarknessDetector(&mainWindow);
+
+    darknessDetector->setMinAreaRatio(0.02f);
+    darknessDetector->setBlackThreshold(40);
+    darknessDetector->setWhiteMask(5, 3);
+
+    darknessDetector->start();
+
+    QObject::connect(darknessDetector, &DarknessDetector::detectionReady, &mainWindow,
+                    [&](QVector<Detector::DetectedObject> results, QImage src, float sx, float sy)
+                    {
+                       if (results.isEmpty()) return;
+                       mainWindow.DrawDetectedBox(results);
+                    });
+
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [&](){
+        darknessDetector->stop();
+    });
+
     // =========================================== Update ===========================================
 
     QTimer updateTimer;
     QObject::connect(&updateTimer, &QTimer::timeout,
-                     [&mainWindow]()
+                     [&mainWindow, &darknessDetector]()
                      {
+                         QImage latestImage = mainWindow.LatestCameraImage();
 
+                        if (!latestImage.isNull()) {
+                            const float scaleX = 1.0f;
+                            const float scaleY = 1.0f;
+                            darknessDetector->submitFrame(latestImage, scaleX, scaleY);
+                        }
                      });
     updateTimer.start(50);
 
-
-    return a.exec();
+    return app.exec();
 }

@@ -43,9 +43,19 @@ MainWindow::MainWindow(QWidget *parent)
         /*flipCheckBox*/   ui->flipCheckBox,
         /*parent*/         this
     );
+
+    // BBox Renderer
+    bboxRenderer_ = new BBoxRenderer(ui->graphicsView, ui->dbboxDispCheckBox, this);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::DrawDetectedBox(QVector<Detector::DetectedObject> objects)
+{
+    // CameraDisplayer が持つ元フレーム解像度（例：first photoResolutions 等）を渡す
+    const QSize camRes = /* 例: cameraDisplayer_->OriginalResolution() */ QSize(600,600);
+    bboxRenderer_->UpdateBoundingBoxes(objects, camRes);
 }

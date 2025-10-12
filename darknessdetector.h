@@ -11,13 +11,16 @@
 // ---- OpenCV forward decl to keep the header light ----
 namespace cv { class Mat; }
 
-struct DetectedObject {
-    // Bounding box in source image coordinates (top-left inclusive, bottom-right exclusive)
-    int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-    int index = 0;
-    int classifySize = 0;
-    QString name = "largest_black";
-    float score = 0.0f; // e.g., area ratio
+class Detector
+{
+    public :
+    struct DetectedObject {
+        int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+        int index = 0;
+        int classifySize = 0;
+        QString name = "largest_black";
+        float score = 0.0f;
+    };
 };
 
 /**
@@ -29,7 +32,7 @@ struct DetectedObject {
  *   - Asynchronous methods hop to the worker thread via invokeMethod.
  *   - Do not touch Qt Widgets from detection callbacks; handle results on UI thread.
  */
-class DarknessDetector : public QObject
+class DarknessDetector : public QObject, Detector
 {
     Q_OBJECT
 public:
@@ -55,6 +58,7 @@ public:
 
 signals:
     // Emitted on the UI thread side because we use QueuedConnection by default.
+    // results[0] is the black area with the largest area.
     void detectionReady(QVector<DetectedObject> results, QImage source, float scaleX, float scaleY);
 
 private:
