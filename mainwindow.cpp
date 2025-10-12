@@ -55,7 +55,6 @@ MainWindow::~MainWindow()
 
 void MainWindow::DrawDetectedBox(QVector<Detector::DetectedObject> objects)
 {
-    // CameraDisplayer が持つ元フレーム解像度（例：first photoResolutions 等）を渡す
-    const QSize camRes = /* 例: cameraDisplayer_->OriginalResolution() */ QSize(600,600);
+    const QSize camRes = cameraDisplayer_->OriginalResolution();
     bboxRenderer_->UpdateBoundingBoxes(objects, camRes);
 }

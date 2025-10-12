@@ -40,6 +40,8 @@ public:
 
     QImage LatestImage(){return latestImage_;}
 
+    QSize OriginalResolution(){return QSize(resolution_.front());}
+
 private slots:
     // Called by QVideoSink for each new frame
     void ProcessVideoFrame(const QVideoFrame& frame);
@@ -50,8 +52,6 @@ private slots:
 private:
     // Utility: rotate with white background (no transparency)
     QImage rotateImageWithWhiteBackground(const QImage& src, int angleDegrees);
-
-    static QImage letterboxToCanvas(const QImage& src, const QSize& canvasSize);
 
     // Utility: simplified aspect ratio using gcd
     QVector<int> CalculateAspectRatioFromResolution(int w, int h);

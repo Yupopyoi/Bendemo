@@ -18,7 +18,7 @@ class Detector
         int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
         int index = 0;
         int classifySize = 0;
-        QString name = "largest_black";
+        QString name = "Path";
         float score = 0.0f;
     };
 };

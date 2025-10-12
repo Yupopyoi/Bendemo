@@ -172,16 +172,13 @@ void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
 
     if (isReversing_) img = img.mirrored(true, false);
 
-    // 回転が 0 なら一切回さない（不要な全画素処理を回避）
     const int angleDegrees = 0;
     if (angleDegrees % 360 != 0) {
         img = rotateImageWithWhiteBackground(img, angleDegrees);
     }
 
-    // ★ レターボックス用の 600x600 画像は作らない。GPUで拡縮表示する。
     QPixmap pix = QPixmap::fromImage(img);
 
-    // 600x600 中央に KeepAspectRatio でフィット（GPUスケーリング）
     const qreal canvasW = CANVAS_SIZE, canvasH = CANVAS_SIZE;
     const qreal sx = canvasW / pix.width();
     const qreal sy = canvasH / pix.height();
@@ -192,10 +189,8 @@ void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
     videoPixmapItem_->setPos(0, 0);
     videoPixmapItem_->setOffset(-pix.width() / 2.0, -pix.height() / 2.0);
 
-    // 検出/保存用の最新フレーム（加工前の生画像）
     latestImage_ = img;
 
-    // BBox との整合用（必要に応じて利用）
     scaleX_ = float(scale);
     scaleY_ = float(scale);
 }
@@ -210,8 +205,6 @@ void CameraDisplayer::SaveImage()
         qDebug() << "[ERROR] Failed to Save Image :" << fileName;
     }
 }
-
-// --- 以下は既存関数名を維持（中では可能な限り軽量化） ---
 
 QImage CameraDisplayer::rotateImageWithWhiteBackground(const QImage& src, const int angleDegrees)
 {
@@ -235,36 +228,6 @@ QImage CameraDisplayer::rotateImageWithWhiteBackground(const QImage& src, const 
     p.drawImage(0, 0, src);
     // p.end(); // 自動
     return result;
-}
-
-QImage CameraDisplayer::letterboxToCanvas(const QImage& src, const QSize& canvasSize)
-{
-    // 互換性のため残すが、通常は呼ばない運用に切替。
-    // どうしても必要な場合のみ最小コストで実施。
-
-    if (src.isNull()) {
-        QImage c(canvasSize, QImage::Format_RGB32);
-        c.fill(Qt::white);
-        return c;
-    }
-
-    // 既に同じサイズ＆余白不要ならそのまま返す（コピー回避）
-    if (src.size() == canvasSize) {
-        return src;
-    }
-
-    // 1回の描画で完了（白紙→スケーリング描画）
-    QImage canvas(canvasSize, QImage::Format_RGB32);
-    canvas.fill(Qt::white);
-
-    const QSize target = src.size().scaled(canvasSize, Qt::KeepAspectRatio);
-    const int x = (canvasSize.width()  - target.width())  / 2;
-    const int y = (canvasSize.height() - target.height()) / 2;
-
-    QPainter p(&canvas);
-    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    p.drawImage(QRect(x, y, target.width(), target.height()), src);
-    return canvas;
 }
 
 QVector<int> CameraDisplayer::CalculateAspectRatioFromResolution(int w, int h)

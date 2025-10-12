@@ -145,7 +145,7 @@ QVector<Detector::DetectedObject> DarknessDetector::detect(const QImage& image,
     const int width  = stats.at<int>(maxLabel, cv::CC_STAT_WIDTH);
     const int height = stats.at<int>(maxLabel, cv::CC_STAT_HEIGHT);
     obj.x1 = left; obj.y1 = top; obj.x2 = left + width; obj.y2 = top + height;
-    obj.index = maxLabel; obj.classifySize = 1; obj.name = "largest_black"; obj.score = sizeRatio;
+    obj.index = maxLabel; obj.classifySize = 1; obj.name = "Path"; obj.score = sizeRatio;
 
     out.push_back(obj);
     return out;

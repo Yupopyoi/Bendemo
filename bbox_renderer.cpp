@@ -8,23 +8,19 @@ BBoxRenderer::BBoxRenderer(QGraphicsView* canvas,
     canvas_(canvas),
     isDisplayingCheckBox_(isDisplayingCheckBox)
 {
-    // 背景透過（ビューをカメラViewに重ねる運用でも、同一scene運用でもOK）
     canvas_->setStyleSheet("background: transparent;");
     canvas_->setAttribute(Qt::WA_TranslucentBackground, true);
     canvas_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     canvas_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    // 既存の Scene を使う（CameraDisplayer が setScene 済みを想定）
     scene_ = canvas_->scene();
     if (!scene_) {
-        // 万一なければ自前で作る
         scene_ = new QGraphicsScene(canvas_);
         canvas_->setScene(scene_);
     }
 
-    // 透明のオーバレイ用ピクスマップ
     overlayItem_ = new QGraphicsPixmapItem();
-    overlayItem_->setZValue(1.0); // 映像より前面
+    overlayItem_->setZValue(1.0);
     scene_->addItem(overlayItem_);
 
     ensureOverlayAligned_();
@@ -32,7 +28,6 @@ BBoxRenderer::BBoxRenderer(QGraphicsView* canvas,
 
 void BBoxRenderer::ensureOverlayAligned_()
 {
-    // CameraDisplayer 側が中央原点(-W/2,-H/2)運用なので合わせる
     const int W = canvas_->viewport()->width();
     const int H = canvas_->viewport()->height();
     overlayItem_->setOffset(-W/2.0, -H/2.0);
@@ -49,7 +44,6 @@ void BBoxRenderer::UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& 
         return;
     }
 
-    // 透明キャンバス作成（ビューの実サイズ）
     const int W = canvas_->viewport()->width();
     const int H = canvas_->viewport()->height();
     QImage bboxImage(W, H, QImage::Format_ARGB32_Premultiplied);
@@ -57,7 +51,6 @@ void BBoxRenderer::UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& 
 
     if (cameraResolution.isValid() && cameraResolution.width() > 0 && cameraResolution.height() > 0)
     {
-        // カメラ画像は幅基準で縮小、上下レターボックス（あなたの計算と同じ）
         const float reductionRatio = float(W) / float(cameraResolution.width());
         const float heightOffset   = (H - cameraResolution.height() * reductionRatio) / 2.0f;
 
@@ -108,11 +101,10 @@ void BBoxRenderer::UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& 
                              textRect.top() + fontPoint_ + 2,
                              object.name + " : " + scoreStr);
         }
-        // painter はスコープ抜けで end
     }
 
     overlayItem_->setPixmap(QPixmap::fromImage(bboxImage));
-    // サイズが変わった可能性に備えて中央合わせ
+
     overlayItem_->setOffset(-bboxImage.width()/2.0, -bboxImage.height()/2.0);
     overlayItem_->setPos(0, 0);
 }
@@ -124,6 +116,7 @@ void BBoxRenderer::DeleteAllBoxes()
     const int H = canvas_->viewport()->height();
     QImage clearImg(W, H, QImage::Format_ARGB32_Premultiplied);
     clearImg.fill(Qt::transparent);
+
     overlayItem_->setPixmap(QPixmap::fromImage(clearImg));
     overlayItem_->setOffset(-W/2.0, -H/2.0);
     overlayItem_->setPos(0, 0);
