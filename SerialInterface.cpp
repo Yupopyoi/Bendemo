@@ -24,11 +24,25 @@ SerialInterface::SerialInterface(int tx_payload_len,
             emit errorOccurred(QString("[Serial] Error: %1").arg(serial_.errorString()));
         }
     });
+
+    flushTimer_.setInterval(1000);
+    connect(&flushTimer_, &QTimer::timeout, this, [this](){
+        if (logStream_.device()) logStream_.flush();
+    });
 }
 
 SerialInterface::~SerialInterface()
 {
-    close();
+    if(isRecording_)
+    {
+        flushTimer_.stop();
+        if (logStream_.device()) logStream_.flush();
+        logFile_.close();
+    }
+
+    saveLatestTxCsv_();
+
+    close();    
 }
 
 QString SerialInterface::port()
@@ -99,11 +113,13 @@ bool SerialInterface::SetMessage(int position, const QByteArray& chunk)
         emit errorOccurred("[Serial] SetMessage: negative position/size.");
         return false;
     }
+
     if (position + chunk.size() > tx_len_) {
         emit errorOccurred(QString("[Serial] SetMessage: out of range (pos=%1, size=%2, tx_len=%3)")
                                .arg(position).arg(chunk.size()).arg(tx_len_));
         return false;
     }
+
     if (chunk.isEmpty()) return true; // nothing to do
     std::copy(chunk.begin(), chunk.end(), tx_message_.begin() + position);
     return true;
@@ -138,6 +154,53 @@ bool SerialInterface::Send()
 QByteArray SerialInterface::read() const
 {
     return latest_rx_payload_;
+}
+
+// ======================= Slots =======================
+
+void SerialInterface::changeRecordState()
+{
+    isRecording_ = !isRecording_;
+
+    if (isRecording_)
+    {
+        // 保存先 = 実行ファイルのあるディレクトリ（/release or /debug の時は1つ上に寄せる）
+        QDir base(QCoreApplication::applicationDirPath());
+        const QString dn = base.dirName().toLower();
+        if (dn == "release" || dn == "debug") base.cdUp();   // ← そのまま直下に置きたいならこの行を消す
+
+        base.mkpath("SerialLogs");
+        const QString dir = base.filePath("SerialLogs");
+
+        currentDate_  = QDate::currentDate();
+        currentStamp_ = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+        const QString path = QDir(dir).filePath(currentStamp_ + ".csv");
+
+        const bool existed = QFile::exists(path);
+        logFile_.setFileName(path);
+        if (!logFile_.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+            emit errorOccurred(QString("[Serial] CSV open failed: %1").arg(path));
+            isRecording_ = false;
+            return;
+        }
+
+        logStream_.setDevice(&logFile_);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+        logStream_.setEncoding(QStringConverter::Utf8);
+#endif
+        if (!existed) {
+            logStream_ << "timestamp";
+            for (int i = 0; i < rx_len_; ++i) logStream_ << ",b" << i;
+            logStream_ << '\n';
+        }
+        flushTimer_.start();
+        qDebug() << "[Serial] Recording ON ->" << path;
+    } else {
+        flushTimer_.stop();
+        if (logStream_.device()) logStream_.flush();
+        logFile_.close();
+        qDebug() << "[Serial] Recording OFF";
+    }
 }
 
 void SerialInterface::onReadyRead()
@@ -182,11 +245,59 @@ void SerialInterface::processIncoming()
         }
 
         latest_rx_payload_ = decoded;
+
+        if (isRecording_ && logStream_.device())
+        {
+            const QString ts =
+                QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+            logStream_ << ts;
+            for (int i = 0; i < latest_rx_payload_.size(); ++i) {
+                const auto v = static_cast<unsigned char>(latest_rx_payload_.at(i));
+                logStream_ << ',' << v;
+            }
+            logStream_ << '\n';
+        }
+
         emit dataReceived(latest_rx_payload_);
     }
 }
 
+void SerialInterface::saveLatestTxCsv_()
+{
+    QDir base(QCoreApplication::applicationDirPath());
+    const QString dn = base.dirName().toLower();
+
+    if (dn == "release" || dn == "debug") base.cdUp();
+    base.mkpath("SerialLogs");
+    const QString path = base.filePath("SerialLogs/LatestSentSerial.csv");
+
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+    {
+        emit errorOccurred(QString("[Serial] Save latest TX failed: %1").arg(f.errorString()));
+        return;
+    }
+
+    QTextStream s(&f);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+    s.setEncoding(QStringConverter::Utf8);
+#endif
+
+    s << "timestamp";
+    for (int i = 0; i < tx_len_; ++i) s << ",b" << i;
+    s << '\n';
+
+    const QString ts = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+    s << ts;
+    for (int i = 0; i < tx_message_.size(); ++i) {
+        const auto v = static_cast<unsigned char>(tx_message_.at(i));
+        s << ',' << v;
+    }
+    s << '\n';
+}
+
 // ======================= COBS (Consistent Overhead Byte Stuffing) =======================
+
 // Encode algorithm: emit "code" byte followed by up to 254 non-zero bytes, repeat; no zero in payload.
 // We return encoded sequence WITHOUT the trailing 0x00 delimiter.
 QByteArray SerialInterface::cobsEncode(const QByteArray& input)

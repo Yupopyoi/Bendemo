@@ -18,8 +18,8 @@
     <property name="geometry">
      <rect>
       <x>70</x>
-      <y>70</y>
-      <width>700</width>
+      <y>25</y>
+      <width>570</width>
       <height>400</height>
      </rect>
     </property>
@@ -180,10 +180,10 @@
    <widget class="QGroupBox" name="groupBox_2">
     <property name="geometry">
      <rect>
-      <x>820</x>
-      <y>70</y>
+      <x>680</x>
+      <y>25</y>
       <width>650</width>
-      <height>975</height>
+      <height>961</height>
      </rect>
     </property>
     <property name="font">
@@ -199,7 +199,7 @@
      <property name="geometry">
       <rect>
        <x>25</x>
-       <y>350</y>
+       <y>340</y>
        <width>600</width>
        <height>600</height>
       </rect>
@@ -308,6 +308,106 @@
        <width>20</width>
        <height>20</height>
       </size>
+     </property>
+    </widget>
+    <widget class="QLabel" name="labelDiff">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>190</y>
+       <width>501</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Difference from the center : </string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+     </property>
+    </widget>
+    <widget class="QLabel" name="labelControll">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>225</y>
+       <width>501</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Controll : </string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="applyButton">
+     <property name="geometry">
+      <rect>
+       <x>420</x>
+       <y>150</y>
+       <width>180</width>
+       <height>40</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Start Applying</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_3">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>865</y>
+      <width>570</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>メイリオ</family>
+      <pointsize>15</pointsize>
+     </font>
+    </property>
+    <property name="title">
+     <string>Arduino</string>
+    </property>
+    <widget class="QLabel" name="arduinoLogLabel">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>30</y>
+       <width>541</width>
+       <height>81</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>メイリオ</family>
+       <pointsize>14</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Port : COMX , BaudRate : 115200 
+ 255,255,255,255,255,255,255,255,255</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="recordButton">
+     <property name="geometry">
+      <rect>
+       <x>450</x>
+       <y>20</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Record</string>
      </property>
     </widget>
    </widget>

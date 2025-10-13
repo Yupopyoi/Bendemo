@@ -39,7 +39,14 @@ void BBoxRenderer::UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& 
 {
     if (!overlayItem_) return;
 
-    if (isDisplayingCheckBox_ && !isDisplayingCheckBox_->isChecked()) {
+    if (detectedObjects.isEmpty())
+    {
+        DeleteAllBoxes();
+        return;
+    }
+
+    if (isDisplayingCheckBox_ && !isDisplayingCheckBox_->isChecked())
+    {
         DeleteAllBoxes();
         return;
     }

@@ -92,6 +92,13 @@ private:
     int   blackThreshold_ = 30;
     int   whiteTopPct_ = 0;
     int   whiteRlPct_  = 0;
+
+    QVector<DetectedObject> detectBypass(const QImage& image,
+                                         float minAreaRatio = 0.01f,
+                                         int blackThreshold = 30,
+                                         int whiteMaskTopPct = 0,
+                                         int whiteMaskRightLeftPct = 0) const;
+
 };
 
 #endif // DARKNESSDETECTOR_H

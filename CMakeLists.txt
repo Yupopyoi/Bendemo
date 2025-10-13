@@ -38,6 +38,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         cameradisplayer.h cameradisplayer.cpp
         darknessdetector.h darknessdetector.cpp
         bbox_renderer.h bbox_renderer.cpp
+        autobending.h autobending.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Bendemo APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

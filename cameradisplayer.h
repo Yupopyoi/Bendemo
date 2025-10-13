@@ -41,6 +41,7 @@ public:
     QImage LatestImage(){return latestImage_;}
 
     QSize OriginalResolution(){return QSize(resolution_.front());}
+    int CanvasSize() noexcept {return CANVAS_SIZE;}
 
 private slots:
     // Called by QVideoSink for each new frame

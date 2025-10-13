@@ -46,7 +46,18 @@ void IntegratedValueController::setRange(double min, double max)
 void IntegratedValueController::setValue(double v)
 {
     v = std::clamp(v, min_, max_);
-    applyToChildren_(v, /*emitChange*/true);
+    applyToChildren_(v, /*emitChange*/ true);
+}
+
+void IntegratedValueController::updateValue(bool isPositive)
+{
+    double sign = isPositive ? 1.0 : -1.0;
+    applyToChildren_(std::clamp(value() + sign * step_,min_, max_), /*emitChange*/ true);
+}
+
+void IntegratedValueController::addValue(double addedValue)
+{
+    applyToChildren_(std::clamp(value() + addedValue, min_, max_), /*emitChange*/ true);
 }
 
 double IntegratedValueController::value() const

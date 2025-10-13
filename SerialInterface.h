@@ -4,11 +4,18 @@
 #pragma once
 
 #include <QByteArray>
+#include <QCoreApplication>
+#include <QDate>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
 #include <QObject>
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#include <QStandardPaths>
 #include <QString>
+#include <QTextStream>
+#include <QTimer>
 
 /**
  * @brief Qt-based serial interface with COBS framing for fixed-length TX/RX (Transmitter/Receiver) payloads.
@@ -52,6 +59,9 @@ signals:
     void dataReceived(const QByteArray& payload); // size == rx_len_
     void errorOccurred(const QString& message);
 
+public slots:
+    void changeRecordState();
+
 private slots:
     void onReadyRead();
 
@@ -70,6 +80,8 @@ private:
     // framing
     void processIncoming(); // parse rx_accumulator_ for 0x00-terminated frames
 
+    void saveLatestTxCsv_();
+
 private:
     QSerialPort serial_;
     const int tx_len_;
@@ -79,6 +91,14 @@ private:
     QByteArray latest_rx_payload_; // fixed length = rx_len_
 
     QByteArray rx_accumulator_;    // collects bytes until 0x00 (frame delimiter)
+
+    // Logging
+    bool        isRecording_{false};
+    QFile       logFile_;
+    QTextStream logStream_;
+    QTimer      flushTimer_;
+    QDate       currentDate_;
+    QString     currentStamp_;
 };
 
 #endif // SERIALINTERFACE_H

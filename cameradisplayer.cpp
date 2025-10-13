@@ -1,28 +1,28 @@
 #include "CameraDisplayer.h"
 
+#include <QCamera>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDateTime>
+#include <QDebug>
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
+#include <QImage>
+#include <QLabel>
 #include <QMediaCaptureSession>
 #include <QMediaDevices>
-#include <QVideoSink>
 #include <QMediaPlayer>
-#include <QCamera>
-#include <QComboBox>
-#include <QLabel>
-#include <QPushButton>
-#include <QCheckBox>
-#include <QVideoFrame>
-#include <QImage>
-#include <QPixmap>
-#include <QPainter>
-#include <QTransform>
-#include <QDateTime>
-#include <QDebug>
 #include <QOpenGLWidget>
+#include <QPainter>
+#include <QPixmap>
+#include <QPushButton>
+#include <QTransform>
+#include <QVideoFrame>
+#include <QVideoSink>
 
-#include <numeric>
 #include <algorithm>
+#include <numeric>
 
 CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
                                  QComboBox *deviceComboBox,
@@ -43,27 +43,23 @@ CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
     videoPlayer_    = new QMediaPlayer(this);
     videoPlayer_->setVideoSink(videoSink_);
 
-    // --- Graphics view / scene（軽量化） ---
+    // --- Graphics view / scene ---
     graphicsView_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     graphicsView_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     graphicsView_->setFixedSize(CANVAS_SIZE, CANVAS_SIZE);
 
-    // ★ GPU 描画を有効化（これだけで体感が大きく上がる）
     graphicsView_->setViewport(new QOpenGLWidget());
-    graphicsView_->setRenderHints({}); // 余計なヒントは外す（必要になったら個別にON）
+    graphicsView_->setRenderHints({});
     graphicsView_->setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
 
     scene_ = new QGraphicsScene(graphicsView_); // parent = view
     graphicsView_->setScene(scene_);
-    // 原点を中央に（あなたの既存仕様を維持）
-    scene_->setSceneRect(-CANVAS_SIZE/2, -CANVAS_SIZE/2, CANVAS_SIZE, CANVAS_SIZE);
 
-    // 背景は白（レターボックスの白塗りを画像生成でやらず、背景描画に任せる）
+    scene_->setSceneRect(-CANVAS_SIZE/2, -CANVAS_SIZE/2, CANVAS_SIZE, CANVAS_SIZE);
     scene_->setBackgroundBrush(Qt::white);
 
-    // 映像表示アイテム（GPU側でスケール）
     videoPixmapItem_ = new QGraphicsPixmapItem();
-    videoPixmapItem_->setTransformationMode(Qt::FastTransformation); // ★高速補間
+    videoPixmapItem_->setTransformationMode(Qt::FastTransformation);
     videoPixmapItem_->setZValue(0);
     scene_->addItem(videoPixmapItem_);
 
@@ -90,6 +86,11 @@ CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
     }
     if (idx == 0 && !cameras_.isEmpty()) idx = 1;
     deviceComboBox_->setCurrentIndex(idx);
+
+    if(flipCheckBox_->isChecked())
+    {
+        isReversing_ = flipCheckBox_->isChecked();
+    }
 }
 
 CameraDisplayer::~CameraDisplayer()
@@ -151,11 +152,9 @@ void CameraDisplayer::ListCameraDevices()
 
 void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
 {
-    // ---- 軽量化の肝：CPU側の画像生成を最小限に ----
     QVideoFrame f(frame);
     if (!f.isValid()) return;
 
-    // 可能なら map() + 参照 QImage でゼロコピーに近づける
     QImage img;
     if (f.map(QVideoFrame::ReadOnly)) {
         const QImage::Format fmt = QVideoFrameFormat::imageFormatFromPixelFormat(f.pixelFormat());
@@ -164,7 +163,7 @@ void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
         }
         f.unmap();
     }
-    // map できない/非対応フォーマット → 素直に toImage()（Qt 内部での最小コピー）
+
     if (img.isNull())
         img = frame.toImage();
 
@@ -226,7 +225,7 @@ QImage CameraDisplayer::rotateImageWithWhiteBackground(const QImage& src, const 
     p.rotate(angleDegrees);
     p.translate(-src.width() / 2.0, -src.height() / 2.0);
     p.drawImage(0, 0, src);
-    // p.end(); // 自動
+
     return result;
 }
 

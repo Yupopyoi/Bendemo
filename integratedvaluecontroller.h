@@ -25,6 +25,8 @@ public:
     // --- Core API ---
     void   setRange(double min, double max);
     void   setValue(double v);
+    void   updateValue(bool isPositive = true);
+    void   addValue(double addedValue);
     double value() const;
     QByteArray valueAsBytes();
 
