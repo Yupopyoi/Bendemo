@@ -82,9 +82,11 @@ CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
     // --- Initial selection: prefer PRIMARY, fallback to first real device ---
     int idx = 0;
     for (int i = 0; i < cameras_.size(); ++i) {
-        if (cameras_[i].description() == PRIMARY_CAMERA_NAME) { idx = i + 1; break; }
+        if (cameras_[i].description() == PRIMARY_CAMERA_NAME1) { idx = i + 1; break; }
+        if (cameras_[i].description() == PRIMARY_CAMERA_NAME2) { idx = i + 1; break; }
     }
     if (idx == 0 && !cameras_.isEmpty()) idx = 1;
+
     deviceComboBox_->setCurrentIndex(idx);
 
     if(flipCheckBox_->isChecked())
