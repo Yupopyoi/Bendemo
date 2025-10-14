@@ -106,7 +106,7 @@ QVector<Detector::DetectedObject> DarknessDetector::detect(const QImage& image,
 {
 
     // Demonstration bypass. This is used when detecting areas that are not black.
-    const bool BYPASS = true;
+    const bool BYPASS = false;
     if (BYPASS)
     {
         auto out = detectBypass(image,minAreaRatio,blackThreshold,whiteMaskTopPct,whiteMaskRightLeftPct);
@@ -349,7 +349,7 @@ QVector<Detector::DetectedObject> DarknessDetector::detectBypass(const QImage& i
     obj.x1 = left; obj.y1 = top; obj.x2 = left + width; obj.y2 = top + height;
     obj.index = maxLabel;
     obj.classifySize = 1;
-    obj.name = "red_dominant";
+    obj.name = "Path";
     obj.score = areaRatio; // 「R成分がどれだけあるか」= 赤マスク面積比
 
     out.push_back(obj);

@@ -87,5 +87,5 @@ private:
     // Constants
     static constexpr int CANVAS_SIZE = 600;               // square view size (px)
     static constexpr const char* PRIMARY_CAMERA_NAME1 = "USB 2.0 Camera";
-    static constexpr const char* PRIMARY_CAMERA_NAME2 = "USB Camera";
+    static constexpr const char* PRIMARY_CAMERA_NAME2 = "FicUsbCamera1";
 };

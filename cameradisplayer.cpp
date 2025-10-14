@@ -85,7 +85,7 @@ CameraDisplayer::CameraDisplayer(QGraphicsView *graphicsView,
         if (cameras_[i].description() == PRIMARY_CAMERA_NAME1) { idx = i + 1; break; }
         if (cameras_[i].description() == PRIMARY_CAMERA_NAME2) { idx = i + 1; break; }
     }
-    if (idx == 0 && !cameras_.isEmpty()) idx = 1;
+    if (idx == 0 && !cameras_.isEmpty()) idx = 0;
 
     deviceComboBox_->setCurrentIndex(idx);
 

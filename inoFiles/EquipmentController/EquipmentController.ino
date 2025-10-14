@@ -23,7 +23,7 @@ uint8_t writeDataBuffer_[OUTPUT_BUFFER_SIZE];
 #include "ServoArrayController.h"
 
 static const int kMotors = 6;
-static const int SERVO_PINS[kMotors] = {5, 6, 0, 0, 0, 0};
+static const int SERVO_PINS[kMotors] = {5, 6, 7, 8, 9, 10};
 
 ServoArrayController servos(kMotors);
 
@@ -34,9 +34,9 @@ uint8_t subcounter_{ 0 };
 
 // ---------------------------------------- IMU ----------------------------------------
 
-#include "mpu6x00.h"
-
-Mpu6x00 imu(0x68);
+#include "ImuComplementary.h"
+ImuComplementary imu(0x68, 0.98f);
+uint8_t rpyBytes[6];
 
 //  ------------------------------------------------------------------------------------------------
 
@@ -44,6 +44,9 @@ void setup()
 {
   setupMotors();
   serialComm.begin();
+
+  imu.begin(100000, 3, 9);
+  imu.setManualBiasPhysical(0.002f, 0.004f, -0.003f,  -0.191f, 0.237f, -0.046f);
 }
 
 
@@ -70,6 +73,12 @@ void loop()
     // データを受信してバッファに格納
     size_t recievedLength = serialComm.receive(readDataBuffer_, INPUT_BUFFER_SIZE);
   }
+
+
+  if (imu.update()) 
+  {
+    imu.getRPYBytes(rpyBytes);
+  }
   
   OperateMotors();
 
@@ -84,12 +93,12 @@ void SerialWrite()
   writeDataBuffer_[2] = readDataBuffer_[1];
   writeDataBuffer_[3] = readDataBuffer_[2];
   writeDataBuffer_[4] = readDataBuffer_[3];
-  writeDataBuffer_[5] = readDataBuffer_[4];
-  writeDataBuffer_[6] = readDataBuffer_[5];
-  writeDataBuffer_[7] = readDataBuffer_[6];
-  writeDataBuffer_[8] = readDataBuffer_[7];
-  writeDataBuffer_[9] = readDataBuffer_[8];
-  writeDataBuffer_[10] = readDataBuffer_[9];
+  writeDataBuffer_[5] = rpyBytes[0];
+  writeDataBuffer_[6] = rpyBytes[1];
+  writeDataBuffer_[7] = rpyBytes[2];
+  writeDataBuffer_[8] = rpyBytes[3];
+  writeDataBuffer_[9] = rpyBytes[4];
+  writeDataBuffer_[10] = rpyBytes[5];
   writeDataBuffer_[11] = 0x00;
   writeDataBuffer_[12] = 0x00;
   writeDataBuffer_[13] = 0x00;
