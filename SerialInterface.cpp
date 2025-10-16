@@ -75,12 +75,22 @@ QString SerialInterface::port()
 
 bool SerialInterface::open(const QString& port_name, int baud_rate)
 {
+    if (port_name == "")
+    {
+        qDebug() << "[Serial] Open failed: Invalid port name";
+        isOpened_ = false;
+        return false;
+    }
+
     if (isOpen()) return true;
     configurePort(port_name, baud_rate);
     if (!serial_.open(QIODevice::ReadWrite)) {
         emit errorOccurred(QString("[Serial] Open failed: %1").arg(serial_.errorString()));
+        isOpened_ = false;
         return false;
     }
+
+    isOpened_ = true;
     return true;
 }
 
@@ -90,11 +100,12 @@ void SerialInterface::close()
         serial_.close();
     }
     rx_accumulator_.clear();
+    isOpened_ = false;
 }
 
 bool SerialInterface::isOpen() const
 {
-    return serial_.isOpen();
+    return isOpened_;
 }
 
 void SerialInterface::configurePort(const QString& port_name, int baud_rate)

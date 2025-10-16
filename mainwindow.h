@@ -31,17 +31,21 @@ public:
     int CanvasSize(){return cameraDisplayer_->CanvasSize();}
     void DrawDetectedBox(QVector<Detector::DetectedObject> obj);
 
-    // Set Label
+    // Set Label and ComboBox
     void setArduinoLogLabel(QByteArray log, QString portName, int baudrate = 115200);
     void setDifferenceLabel(double xDiff, double yDiff);
     void setControllLabel(double xDiff, double yDiff);
+    void setDetectorComboBox(QString yoloModelName, int defaultIndex = 0);
 
     // Controll Equipment
     bool canApply() noexcept {return canApply_;}
     void addMotorValue(int motorIndex, double value);
 
+    QString DetectorName();
+
 signals:
     void channelChanged(int position, double value);
+    void cameraReady(CameraDisplayer* cam);
 
 private:
     Ui::MainWindow *ui;

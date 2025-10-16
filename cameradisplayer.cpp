@@ -104,6 +104,17 @@ CameraDisplayer::~CameraDisplayer()
     }
 }
 
+void CameraDisplayer::onVideoFrame(const QVideoFrame& frame)
+{
+    if (!frame.isValid()) return;
+    QImage img = frame.toImage();
+    if (img.isNull()) return;
+
+    if (isReversing_) img = img.mirrored(true, false);
+
+    emit frameReady(img);
+}
+
 void CameraDisplayer::DisplayVideo(const int cameraIndex)
 {
     if (camera_) {
@@ -155,6 +166,9 @@ void CameraDisplayer::ListCameraDevices()
 void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
 {
     QVideoFrame f(frame);
+
+    emit onVideoFrame(f);
+
     if (!f.isValid()) return;
 
     QImage img;

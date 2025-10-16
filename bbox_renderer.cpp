@@ -35,7 +35,7 @@ void BBoxRenderer::ensureOverlayAligned_()
 }
 
 void BBoxRenderer::UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& detectedObjects,
-                                       const QSize& cameraResolution)
+                                       const QSize& cameraResolution, int maximumBoxes)
 {
     if (!overlayItem_) return;
 
@@ -65,8 +65,11 @@ void BBoxRenderer::UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& 
         painter.setRenderHint(QPainter::Antialiasing, true);
         painter.setFont(QFont("Arial Black", fontPoint_, QFont::Bold));
 
+        int counter = 1;
         for (const auto& object : detectedObjects)
         {
+            if(counter++ > maximumBoxes) break;
+
             // 座標変換（元画像 → 画面）
             const float x1 = object.x1 * reductionRatio;
             const float y1 = object.y1 * reductionRatio + heightOffset;
@@ -106,7 +109,7 @@ void BBoxRenderer::UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& 
             const QString scoreStr = QString::number(object.score, 'f', 2);
             painter.drawText(textRect.left() + 4,
                              textRect.top() + fontPoint_ + 2,
-                             object.name + " : " + scoreStr);
+                             QString::fromStdString(object.name) + " : " + scoreStr);
         }
     }
 

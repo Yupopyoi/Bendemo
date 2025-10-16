@@ -1,6 +1,7 @@
 #ifndef AUTOBENDING_H
 #define AUTOBENDING_H
 
+#include <QDebug>
 #include <QElapsedTimer>
 #include <algorithm>
 
@@ -52,7 +53,7 @@ private:
     // PID ゲイン
     double Kp_ = 0.02;
     double Ki_ = 0.00;
-    double Kd_ = 0.01;
+    double Kd_ = 0.00;
 
     // D ローパス
     double dCutHz_ = 5.0;

@@ -38,11 +38,11 @@ double AutoBending::pidAxis_(double err_px, double dt, double pxPerUnit,
     double u = P + integ + D;
 
     // 飽和 + ざっくりアンチワインドアップ
-    const double uSat = std::clamp(u, -outAbsMax_, outAbsMax_);
-    if (u != uSat) {
-        integ += (uSat - u) * 0.5;
-        u = uSat;
-    }
+    //const double uSat = std::clamp(u, -outAbsMax_, outAbsMax_);
+    //if (u != uSat) {
+    //    integ += (uSat - u) * 0.5;
+    //    u = uSat;
+    //}
     return u;
 }
 
@@ -51,7 +51,7 @@ bool AutoBending::step(double differenceX_px, double differenceY_px,
 {
     if (!enabled_) { outDeltaX = outDeltaY = 0.0; return false; }
 
-    double dt = 0.02; // fallback 50Hz
+    double dt = 0.02;
     if (!started_) {
         t_.start();
         started_ = true;

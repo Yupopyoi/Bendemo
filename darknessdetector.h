@@ -18,7 +18,7 @@ class Detector
         int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
         int index = 0;
         int classifySize = 0;
-        QString name = "Path";
+        std::string name = "Path";
         float score = 0.0f;
     };
 };
@@ -92,13 +92,6 @@ private:
     int   blackThreshold_ = 30;
     int   whiteTopPct_ = 0;
     int   whiteRlPct_  = 0;
-
-    QVector<DetectedObject> detectBypass(const QImage& image,
-                                         float minAreaRatio = 0.01f,
-                                         int blackThreshold = 30,
-                                         int whiteMaskTopPct = 0,
-                                         int whiteMaskRightLeftPct = 0) const;
-
 };
 
 #endif // DARKNESSDETECTOR_H

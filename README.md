@@ -12,6 +12,13 @@ MSVC 2022 64-bit
 
 ## 事始め
 
+### Bendemoの入手
+
+```powershell
+git clone https://github.com/Yupopyoi/Bendemo.git
+cd Bendemo
+```
+
 ### OpenCVの導入
 
 Bendemoディレクトリ下で、次のコマンドを実行する。
@@ -27,6 +34,8 @@ $env:Path += ";C:\Windows\System32\WindowsPowerShell\v1.0"
 
 # This takes about 10 minutes.
 .\vcpkg\vcpkg.exe install "opencv[world]:x64-windows"
+
+.\vcpkg\vcpkg.exe install yaml-cpp:x64-windows
 
 # Delete Regacy Build
 Remove-Item -Recurse -Force .\build -ErrorAction SilentlyContinue

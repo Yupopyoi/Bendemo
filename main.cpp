@@ -4,12 +4,18 @@
 #include <QDebug>
 #include <QTimer>
 
+#include <c10/macros/Macros.h>
+
 #include "autobending.h"
 #include "darknessdetector.h"
 #include "SerialInterface.h"
+#include "yoloexecutor.h"
 
 int main(int argc, char *argv[])
 {
+    qputenv("CUDA_LAUNCH_BLOCKING", "1");         // CUDA の非同期を止める
+    qputenv("TORCH_SHOW_CPP_STACKTRACES", "1");   // LibTorch の C++ stack を出す
+
     QApplication app(argc, argv);
     MainWindow mainWindow;
     mainWindow.show();
@@ -30,7 +36,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        qCritical() << "Failed to open port.";
+        qCritical() << "[Main] Failed to open port.";
     }
 
     mainWindow.setArduinoLogLabel(QByteArray(), PortName, Baudrate);
@@ -40,15 +46,7 @@ int main(int argc, char *argv[])
                         mainWindow.setArduinoLogLabel(data, PortName, Baudrate);
                      });
 
-    // =========================================== Darkness Detector & Auto Bender ===========================================
-
-    auto darknessDetector = new DarknessDetector(&mainWindow);
-
-    darknessDetector->setMinAreaRatio(0.02f);
-    darknessDetector->setBlackThreshold(40);
-    darknessDetector->setWhiteMask(5, 3);
-
-    darknessDetector->start();
+    // ===========================================    Auto Bender    ===========================================
 
     AutoBending autoBend;
     autoBend.setGains(1.0, 0.00, 0.01);
@@ -58,10 +56,80 @@ int main(int argc, char *argv[])
     autoBend.setGeometry(25.0, 25.0);
 
     double addX_ = 0.0, addY_ = 0.0;
+    QTimer motorUpdateTimer;
+    QObject::connect(&motorUpdateTimer, &QTimer::timeout,
+                     [&mainWindow, &addX_, &addY_]()
+                     {
+                         if (!mainWindow.canApply()) return;
+
+                         if (std::abs(addX_) > 0.0) mainWindow.addMotorValue(0, addX_);
+                         if (std::abs(addY_) > 0.0) mainWindow.addMotorValue(1, addY_);
+                     });
+    motorUpdateTimer.start(1000);
+
+
+    // =========================================== Center Difference Calculator ===========================================
+
+    struct CenterDifferenceCalculator
+    {
+        double operator()(const QVector<Detector::DetectedObject>& results,
+                          const QImage& src,
+                          int detectedIndex,
+                          int canvasSize,
+                          double& differenceX,
+                          double& differenceY) const
+        {
+            if (results.isEmpty()) {
+                differenceX = std::nan("");
+                differenceY = std::nan("");
+                return 0.0;
+            }
+
+            const double reduceRatioX = static_cast<double>(canvasSize) / src.width();
+            const double reduceRatioY = static_cast<double>(canvasSize) / src.height();
+
+            const double centerPositionX = (results[detectedIndex].x1 + results[detectedIndex].x2) * 0.5 * reduceRatioX;
+            const double centerPositionY = (results[detectedIndex].y1 + results[detectedIndex].y2) * 0.5 * reduceRatioY;
+
+            differenceX = centerPositionX - static_cast<double>(canvasSize) * 0.5;
+            differenceY = static_cast<double>(canvasSize) * 0.5 - centerPositionY;
+
+            return std::hypot(differenceX, differenceY);
+        }
+    };
+
+    CenterDifferenceCalculator calculator;
+
+    // =========================================== Darkness Detector ===========================================
+
+    auto darknessDetector = new DarknessDetector(nullptr);
+
+    darknessDetector->setMinAreaRatio(0.02f);
+    darknessDetector->setBlackThreshold(40);
+    darknessDetector->setWhiteMask(5, 3);
+
+    darknessDetector->start();
+
+    // Image Acquisition & Detection
+    QTimer ddUpdateTimer;
+    QObject::connect(&ddUpdateTimer, &QTimer::timeout,
+                    [&mainWindow, darknessDetector]()
+                    {
+                        if(mainWindow.DetectorName().contains("OpenCV") == false) return;
+
+                        const QImage latest = mainWindow.LatestCameraImage();
+                        if (latest.isNull()) return;
+
+                        // submitFrame() contains the detect function
+                        darknessDetector->submitFrame(latest);
+                    });
+    ddUpdateTimer.start(50);
+
     QObject::connect(darknessDetector, &DarknessDetector::detectionReady, &mainWindow,
                     [&](QVector<Detector::DetectedObject> results, QImage src, float sx, float sy)
                     {
-                        mainWindow.DrawDetectedBox(results);
+                        // Output of bounding boxes
+                         mainWindow.DrawDetectedBox(results);
 
                         if (results.isEmpty())
                         {
@@ -70,14 +138,9 @@ int main(int argc, char *argv[])
                             return;
                         }
 
-                        // Difference from the center
-                        double reduceRatioX = (double)mainWindow.CanvasSize() / (src.size().width());
-                        double reduceRatioY = (double)mainWindow.CanvasSize() / (src.size().height());
-                        double centerPositionX = (results[0].x1 + results[0].x2) * 0.5 * reduceRatioX;
-                        double centerPositionY = (results[0].y1 + results[0].y2) * 0.5 * reduceRatioY;
-
-                        double differenceX = centerPositionX - (double)mainWindow.CanvasSize() * 0.5;
-                        double differenceY = (double)mainWindow.CanvasSize() * 0.5 - centerPositionY;
+                        // Calculate the difference in image center coordinates
+                        double differenceX, differenceY;
+                        calculator(results, src, 0, mainWindow.CanvasSize(), differenceX, differenceY);
 
                         mainWindow.setDifferenceLabel(differenceX, differenceY);
 
@@ -94,30 +157,62 @@ int main(int argc, char *argv[])
         darknessDetector->stop();
     });
 
-    QTimer motorUpdateTimer;
-    QObject::connect(&motorUpdateTimer, &QTimer::timeout,
-                     [&mainWindow, &addX_, &addY_]()
-                     {
-                        if (!mainWindow.canApply()) return;
 
-                        if (std::abs(addX_) > 0.0) mainWindow.addMotorValue(0, addX_);
-                        if (std::abs(addY_) > 0.0) mainWindow.addMotorValue(1, addY_);
-                     });
-    motorUpdateTimer.start(1000);
+    // =========================================== YOLO Detector ===========================================
+    const bool useCUDA = true;
+    auto yolo = std::make_unique<YoloExecutor>();
 
-    QTimer updateTimer;
-    QObject::connect(&updateTimer, &QTimer::timeout,
-                     [&mainWindow, &darknessDetector]()
-                     {
-                         QImage latestImage = mainWindow.LatestCameraImage();
+    if (!yolo->Load(useCUDA)) {
+        qCritical() << "[Main] YOLO Load failed";
+    }
 
-                        if (!latestImage.isNull()) {
-                            const float scaleX = 1.0f;
-                            const float scaleY = 1.0f;
-                            darknessDetector->submitFrame(latestImage, scaleX, scaleY);
-                        }
-                     });
-    updateTimer.start(50);
+    mainWindow.setDetectorComboBox(yolo->ModelName(), 1);
+
+    static bool busy = false;
+    static QElapsedTimer tick; tick.start();
+
+    QObject::connect(&mainWindow, &MainWindow::cameraReady,
+                    &mainWindow, [&](CameraDisplayer* cam){
+                        QTimer updateTimer;
+
+                        static bool busy = false;
+                        static QElapsedTimer tick; tick.start();
+
+                        QObject::connect(cam, &CameraDisplayer::frameReady,
+                                        &mainWindow,
+                                        [&](const QImage& img)
+                                        {
+                                            if(mainWindow.DetectorName().contains("yolo") == false) return;
+
+                                            if (busy) return;
+                                            if (tick.isValid() && tick.elapsed() < 100)
+                                                return;
+                                            tick.restart();
+
+                                            busy = true;
+
+                                            auto qimgPtr = std::make_shared<QImage>(img);
+                                            auto results = yolo->Detect(qimgPtr);
+
+                                            mainWindow.DrawDetectedBox(results);
+                                            busy = false;
+
+                                            // Calculate the difference in image center coordinates
+                                            double differenceX, differenceY;
+                                            calculator(results, img, 0, mainWindow.CanvasSize(), differenceX, differenceY);
+
+                                            mainWindow.setDifferenceLabel(differenceX, differenceY);
+
+                                            double dX = 0.0, dY = 0.0;
+                                            if (autoBend.step(differenceX, differenceY, dX, dY))
+                                            {
+                                                mainWindow.setControllLabel(dX, dY);
+                                                addX_ = dX;
+                                                addY_ = dY;
+                                            }
+                                        },
+                                        Qt::QueuedConnection);
+                    });
 
     return app.exec();
 }

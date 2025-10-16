@@ -1,103 +1,105 @@
-cmake_minimum_required(VERSION 3.16)
-
+cmake_minimum_required(VERSION 3.20)
 project(Bendemo VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT MSVC)
-  message(FATAL_ERROR "MSVC/Qt(msvc2022_64) 用プロジェクトです。\
-  Visual Studio 17 2022 + -A x64 のキットで再構成してください。")
+  message(FATAL_ERROR "This project is for MSVC/Qt (msvc2022_64). Please reconfigure it using the Visual Studio 17 2022 + -A x64 kit.")
 endif()
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
-find_package(Qt6 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets)
-find_package(Qt6 REQUIRED COMPONENTS OpenGLWidgets)
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+  if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
+    set(CMAKE_CUDA_ARCHITECTURES native)
+  else()
+    # Replace according to your GPU (e.g. RTX30=86, RTX40=89)
+    set(CMAKE_CUDA_ARCHITECTURES 89)
+  endif()
+endif()
 
-# find dependencies
+set(CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}")
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
+
+# --- Torch_DIR  ---
+if(NOT Torch_DIR)
+  if(DEFINED ENV{Torch_DIR})
+    set(Torch_DIR "$ENV{Torch_DIR}")
+  else()
+    set(_guess "$ENV{USERPROFILE}/libtorch/share/cmake/Torch")
+    file(TO_CMAKE_PATH "${_guess}" Torch_DIR)
+  endif()
+endif()
+message(STATUS "Torch_DIR = ${Torch_DIR}")
+
+find_package(Qt6 REQUIRED COMPONENTS Core Multimedia SerialPort Widgets OpenGLWidgets)
 find_package(OpenCV CONFIG REQUIRED)
+find_package(Torch REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+    main.cpp
+    mainwindow.cpp
+    mainwindow.h
+    mainwindow.ui
+    SerialInterface.h SerialInterface.cpp
+    integratedvaluecontroller.h integratedvaluecontroller.cpp
+    cameradisplayer.h cameradisplayer.cpp
+    darknessdetector.h darknessdetector.cpp
+    bbox_renderer.h bbox_renderer.cpp
+    autobending.h autobending.cpp
+    yoloexecutor.h yoloexecutor.cpp
+  )
+
+qt_add_executable(Bendemo
+  MANUAL_FINALIZATION
+  ${PROJECT_SOURCES}
 )
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(Bendemo
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-        SerialInterface.h
-        SerialInterface.cpp
-        integratedvaluecontroller.h integratedvaluecontroller.cpp
-        cameradisplayer.h cameradisplayer.cpp
-        darknessdetector.h darknessdetector.cpp
-        bbox_renderer.h bbox_renderer.cpp
-        autobending.h autobending.cpp
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET Bendemo APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
+target_link_libraries(Bendemo PRIVATE
+  Qt6::Core Qt6::Multimedia Qt6::SerialPort Qt6::Widgets Qt6::OpenGLWidgets
+  ${TORCH_LIBRARIES}
+  yaml-cpp::yaml-cpp
+)
+
+if (TARGET OpenCV::opencv_world)
+  message(STATUS "OpenCV (CONFIG) using opencv_world, version: ${OpenCV_VERSION}")
+  target_link_libraries(Bendemo PRIVATE OpenCV::opencv_world)
+elseif (TARGET opencv_world)
+  message(STATUS "OpenCV (CONFIG) using legacy opencv_world target, version: ${OpenCV_VERSION}")
+  target_link_libraries(Bendemo PRIVATE opencv_world)
 else()
-    if(ANDROID)
-        add_library(Bendemo SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(Bendemo
-            ${PROJECT_SOURCES}
-        )
-    endif()
+  message(STATUS "OpenCV (CONFIG) using modules, version: ${OpenCV_VERSION}")
+  target_link_libraries(Bendemo PRIVATE
+    OpenCV::opencv_core
+    OpenCV::opencv_imgproc
+    OpenCV::opencv_imgcodecs
+    OpenCV::opencv_videoio
+    OpenCV::opencv_highgui
+  )
 endif()
 
-target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Core)
-target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Multimedia)
-target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::SerialPort)
-target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(Bendemo PRIVATE Qt${QT_VERSION_MAJOR}::OpenGLWidgets)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-# If OpenCV exports targets (modern), link by imported targets.
-# Otherwise fall back to legacy variables.
-if (TARGET OpenCV::opencv_core)
-    message(STATUS "OpenCV found (CONFIG). Version: ${OpenCV_VERSION}")
-    target_link_libraries(Bendemo PRIVATE OpenCV::opencv_world)
-else()
-    message(STATUS "OpenCV found (MODULE). Version: ${OpenCV_VERSION}")
-    include_directories(${OpenCV_INCLUDE_DIRS})
-    target_link_libraries(Bendemo PRIVATE ${OpenCV_LIBS})
+if (MSVC)
+  add_definitions(-DNOMINMAX)
 endif()
 
 qt_standard_project_setup()
 
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.Bendemo)
-endif()
 set_target_properties(Bendemo PROPERTIES
-    ${BUNDLE_ID_OPTION}
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
+  WIN32_EXECUTABLE TRUE
 )
 
-include(GNUInstallDirs)
 install(TARGETS Bendemo
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  RUNTIME DESTINATION bin
+  BUNDLE  DESTINATION .
+  LIBRARY DESTINATION lib
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(Bendemo)
-endif()
+qt_finalize_executable(Bendemo)

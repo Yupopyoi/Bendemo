@@ -20,7 +20,7 @@ public:
                           QObject* parent = nullptr);
 
     void UpdateBoundingBoxes(const QVector<Detector::DetectedObject>& detectedObjects,
-                             const QSize& cameraResolution);
+                             const QSize& cameraResolution, int maximumBoxes = 1);
 
     void DeleteAllBoxes();
 

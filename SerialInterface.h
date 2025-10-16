@@ -86,6 +86,7 @@ private:
     QSerialPort serial_;
     const int tx_len_;
     const int rx_len_;
+    bool isOpened_{false};
 
     QByteArray tx_message_;        // fixed length = tx_len_
     QByteArray latest_rx_payload_; // fixed length = rx_len_

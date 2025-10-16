@@ -104,15 +104,6 @@ QVector<Detector::DetectedObject> DarknessDetector::detect(const QImage& image,
                                                  int whiteMaskTopPct,
                                                  int whiteMaskRightLeftPct) const
 {
-
-    // Demonstration bypass. This is used when detecting areas that are not black.
-    const bool BYPASS = false;
-    if (BYPASS)
-    {
-        auto out = detectBypass(image,minAreaRatio,blackThreshold,whiteMaskTopPct,whiteMaskRightLeftPct);
-        return out;
-    }
-
     QVector<Detector::DetectedObject> out;
     if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
         qWarning() << "[DarknessDetector] Invalid image.";
@@ -268,90 +259,4 @@ void DarknessDetector::tryProcess_()
     if (pending_) {
         QMetaObject::invokeMethod(this, "tryProcess_", Qt::QueuedConnection);
     }
-}
-
-// Bypass
-
-QVector<Detector::DetectedObject> DarknessDetector::detectBypass(const QImage& image,
-                                                           float minAreaRatio,
-                                                           int /*blackThreshold*/,
-                                                           int whiteMaskTopPct,
-                                                           int whiteMaskRightLeftPct) const
-{
-    QVector<Detector::DetectedObject> out;
-    if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
-        qWarning() << "[DarknessDetector] Invalid image.";
-        return out;
-    }
-
-    cv::Mat bgr = qimageToCvBgrOrGray(image);
-    if (bgr.empty()) {
-        qWarning() << "[DarknessDetector] Unsupported format.";
-        return out;
-    }
-
-    if (whiteMaskTopPct > 0 || whiteMaskRightLeftPct > 0) {
-        coverWithWhiteMask(bgr, whiteMaskTopPct, whiteMaskRightLeftPct);
-    }
-
-    // ============================================================
-    const int  kRMin        = 120; // Rの絶対値（0..255）
-    const int  kRDom        = 40;  // R が G/B よりどれだけ優勢か (R - max(G,B))
-    const int  kMorphKernel = 3;   // ノイズ除去用モルフォロジ
-    // ============================================================
-
-    // BGR -> R,G,B チャンネル分離
-    std::array<cv::Mat, 3> ch;
-    cv::split(bgr, ch.data());         // ch[0]=B, ch[1]=G, ch[2]=R
-    cv::Mat r = ch[2], g = ch[1], b = ch[0];
-
-    // max(G,B)
-    cv::Mat gbMax;
-    cv::max(g, b, gbMax);
-
-    // 条件：R >= kRMin かつ (R - max(G,B)) >= kRDom
-    cv::Mat cond1, cond2, redMask;
-    cv::compare(r, kRMin, cond1, cv::CMP_GE);
-    cv::Mat rd;
-    cv::subtract(r, gbMax, rd, cv::noArray(), CV_16S);        // 16bitで安全に差分
-    cv::compare(rd, kRDom, cond2, cv::CMP_GE);
-    cv::bitwise_and(cond1, cond2, redMask);
-    redMask.convertTo(redMask, CV_8U);                        // 0/255
-
-    // ノイズ削減（任意）
-    if (kMorphKernel > 0) {
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kMorphKernel, kMorphKernel));
-        cv::morphologyEx(redMask, redMask, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(redMask, redMask, cv::MORPH_CLOSE, kernel);
-    }
-
-    // 連結成分で最大赤領域を取得
-    cv::Mat labels, stats, centroids;
-    int num = cv::connectedComponentsWithStats(redMask, labels, stats, centroids, 8, CV_32S);
-    if (num <= 1) return out; // 背景のみ
-
-    int maxLabel = -1, maxArea = 0;
-    for (int i = 1; i < num; ++i) {
-        int area = stats.at<int>(i, cv::CC_STAT_AREA);
-        if (area > maxArea) { maxArea = area; maxLabel = i; }
-    }
-    if (maxLabel < 0) return out;
-
-    const double imgArea = double(image.width()) * image.height();
-    const float  areaRatio = float(maxArea / imgArea);
-    if (areaRatio < minAreaRatio) return out;
-
-    DetectedObject obj;
-    const int left   = stats.at<int>(maxLabel, cv::CC_STAT_LEFT);
-    const int top    = stats.at<int>(maxLabel, cv::CC_STAT_TOP);
-    const int width  = stats.at<int>(maxLabel, cv::CC_STAT_WIDTH);
-    const int height = stats.at<int>(maxLabel, cv::CC_STAT_HEIGHT);
-    obj.x1 = left; obj.y1 = top; obj.x2 = left + width; obj.y2 = top + height;
-    obj.index = maxLabel;
-    obj.classifySize = 1;
-    obj.name = "Path";
-    obj.score = areaRatio; // 「R成分がどれだけあるか」= 赤マスク面積比
-
-    out.push_back(obj);
-    return out;
 }

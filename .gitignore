@@ -86,6 +86,7 @@ CMakeLists.txt.user*
 *.jpg
 
 # ml model
+*.pt
 *.pth
 
 # opencv

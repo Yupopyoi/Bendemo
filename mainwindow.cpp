@@ -20,9 +20,7 @@ static void ensureNumLockOn()
 }
 #endif
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     #ifdef Q_OS_WIN
         ensureNumLockOn();
@@ -38,6 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
     outerTubeVController->setDecimals(1);
     double latestValueV = doubleFromBytes(latestSentSerialData, 0);
     if (latestValueV == std::numeric_limits<double>::quiet_NaN()) latestValueV = 135.0;
+    else if (latestValueV == 0) latestValueV = 135.0;
     outerTubeVController->setValue(latestValueV);
 
     // Outer Tube Horizontal Movement Integrated Controller
@@ -47,14 +46,21 @@ MainWindow::MainWindow(QWidget *parent)
     outerTubeHController->setDecimals(1);
     double latestValueH = doubleFromBytes(latestSentSerialData, 2);
     if (latestValueH == std::numeric_limits<double>::quiet_NaN()) latestValueH = 135.0;
+    else if (latestValueH == 0) latestValueH = 135.0;
     outerTubeHController->setValue(latestValueH);
 
-    connect(outerTubeVController, &IntegratedValueController::valueChanged, this, [&](double v){
+    connect(outerTubeVController, &IntegratedValueController::valueChanged, this, [&](double v)
+    {
+        // [HACK] If the connection to Arduino is not established, some parts of the SerialInterface may not function correctly.
+        // Here, I am using the log text to verify that it is not connected.
+        if(ui->arduinoLogLabel->text().contains(QStringLiteral("COM")) == false) return;
         serialInterface->SetMessage(0, outerTubeVController->valueAsBytes());
         serialInterface->Send();
     });
 
-    connect(outerTubeHController, &IntegratedValueController::valueChanged, this, [&](double v){
+    connect(outerTubeHController, &IntegratedValueController::valueChanged, this, [&](double v)
+    {
+        if(ui->arduinoLogLabel->text().contains(QStringLiteral("COM")) == false) return;
         serialInterface->SetMessage(2, outerTubeHController->valueAsBytes());
         serialInterface->Send();
     });
@@ -71,6 +77,10 @@ MainWindow::MainWindow(QWidget *parent)
         /*flipCheckBox*/   ui->flipCheckBox,
         /*parent*/         this
     );
+    QTimer::singleShot(0, this, [this]{
+        emit cameraReady(cameraDisplayer_);
+    });
+    qDebug() << "New CameraDisplayer";
 
     // BBox Renderer
     bboxRenderer_ = new BBoxRenderer(ui->graphicsView, ui->dbboxDispCheckBox, this);
@@ -198,6 +208,17 @@ void MainWindow::setControllLabel(double x, double y)
     ui->labelControll->setText(text);
 }
 
+void MainWindow::setDetectorComboBox(QString yoloModelName, int defaultIndex)
+{
+    ui->detectorComboBox->blockSignals(true);
+    ui->detectorComboBox->clear();
+    ui->detectorComboBox->addItem("OpenCV");
+    ui->detectorComboBox->addItem(yoloModelName);
+    ui->detectorComboBox->blockSignals(false);
+
+    ui->detectorComboBox->setCurrentIndex(defaultIndex);
+}
+
 void MainWindow::addMotorValue(int motorIndex, double value)
 {
     switch(motorIndex)
@@ -209,6 +230,11 @@ void MainWindow::addMotorValue(int motorIndex, double value)
         outerTubeHController->addValue(value);
         break;
     }
+}
+
+QString MainWindow::DetectorName()
+{
+    return ui->detectorComboBox->currentText();
 }
 
 // ===================================== Private Methods =====================================

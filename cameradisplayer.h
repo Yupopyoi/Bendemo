@@ -43,9 +43,13 @@ public:
     QSize OriginalResolution(){return QSize(resolution_.front());}
     int CanvasSize() noexcept {return CANVAS_SIZE;}
 
+signals:
+    void frameReady(const QImage& img);
+
 private slots:
     // Called by QVideoSink for each new frame
     void ProcessVideoFrame(const QVideoFrame& frame);
+    void onVideoFrame(const QVideoFrame& frame);
 
     // Save the latest frame as jpg
     void SaveImage();
