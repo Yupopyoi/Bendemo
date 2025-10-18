@@ -5,7 +5,18 @@
 
 namespace fs = std::filesystem;
 
-YoloExecutor::YoloExecutor(QObject* parent){}
+YoloExecutor::YoloExecutor(QObject* parent)
+{
+    if(MODEL_NAME.find("v10") != std::string::npos){
+        modelVersion_ = 10;
+    }
+    else if(MODEL_NAME.find("11") != std::string::npos){
+        modelVersion_ = 11;
+    }
+    else{
+        modelVersion_ = -1;
+    }
+}
 
 // ---------------------- internal: files/labels ------------------
 
@@ -237,35 +248,80 @@ torch::Tensor YoloExecutor::PadImage(const torch::Tensor& image)
                torch::nn::functional::PadFuncOptions({pad_left, pad_right, pad_top, pad_bottom}).mode(torch::kConstant).value(0)).squeeze(0); // Remove batch dimension
 }
 
+// boxes: (K,4) [x1,y1,x2,y2], scores: (K)
+static torch::Tensor simple_nms(torch::Tensor boxes, torch::Tensor scores, float iou_thr) {
+    using namespace torch::indexing;
+    auto x1 = boxes.index({Slice(), 0});
+    auto y1 = boxes.index({Slice(), 1});
+    auto x2 = boxes.index({Slice(), 2});
+    auto y2 = boxes.index({Slice(), 3});
+
+    auto areas = (x2 - x1).clamp_min(0) * (y2 - y1).clamp_min(0);
+    auto sorted = scores.sort(/*dim=*/0, /*descending=*/true);
+    auto order  = std::get<1>(sorted);  // (K) long
+
+    std::vector<int64_t> keep;
+    while (order.numel() > 0) {
+        auto i = order[0].item<int64_t>();
+        keep.push_back(i);
+        if (order.numel() == 1) break;
+
+        auto rest = order.slice(0, 1);  // (K-1)
+
+        auto xx1 = torch::max(x1.index({rest}), x1[i]);
+        auto yy1 = torch::max(y1.index({rest}), y1[i]);
+        auto xx2 = torch::min(x2.index({rest}), x2[i]);
+        auto yy2 = torch::min(y2.index({rest}), y2[i]);
+
+        auto w = (xx2 - xx1).clamp_min(0);
+        auto h = (yy2 - yy1).clamp_min(0);
+        auto inter = w * h;
+        auto iou = inter / (areas[i] + areas.index({rest}) - inter + 1e-9);
+
+        auto mask = iou <= iou_thr;        // (K-1) bool
+        order = rest.index({mask});        // 次へ
+    }
+    return torch::from_blob(keep.data(), {(long long)keep.size()}, torch::TensorOptions().dtype(torch::kLong)).clone();
+}
+
 void YoloExecutor::StoreDetectedObjects()
 {
     detectedObjects_.clear();
 
-    for (int i = 0; i < detections_.size(1); i++)
+    if (modelVersion_ == -1) return;
+
+    if (modelVersion_ == 10)
     {
-        auto score = detections_[0][i][4].item<float>();
-
-        if (score > SCORE_THRESHOLD)
+        for (int i = 0; i < detections_.size(1); i++)
         {
-            DetectedObject detectedObject;
+            auto score = detections_[0][i][4].item<float>();
 
-            auto x1 = detections_[0][i][0].item<float>();
-            auto y1 = detections_[0][i][1].item<float>();
-            auto x2 = detections_[0][i][2].item<float>();
-            auto y2 = detections_[0][i][3].item<float>();
-            auto index = detections_[0][i][5].item<int>();
+            if (score > SCORE_THRESHOLD)
+            {
+                DetectedObject detectedObject;
 
-            detectedObject.x1 = (x1 - paddingSize_.width())  / reductionRatio_.x();
-            detectedObject.y1 = (y1 - paddingSize_.height()) / reductionRatio_.y();
-            detectedObject.x2 = (x2 - paddingSize_.width())  / reductionRatio_.x();
-            detectedObject.y2 = (y2 - paddingSize_.height()) / reductionRatio_.y();
-            detectedObject.score = score;
-            detectedObject.index = index;
-            detectedObject.classifySize = classifyNames_.size();
-            detectedObject.name = classifyNames_[detections_[0][i][5].item<int>()];
+                auto x1 = detections_[0][i][0].item<float>();
+                auto y1 = detections_[0][i][1].item<float>();
+                auto x2 = detections_[0][i][2].item<float>();
+                auto y2 = detections_[0][i][3].item<float>();
+                auto index = detections_[0][i][5].item<int>();
 
-            detectedObjects_.append(detectedObject);
+                detectedObject.x1 = (x1 - paddingSize_.width())  / reductionRatio_.x();
+                detectedObject.y1 = (y1 - paddingSize_.height()) / reductionRatio_.y();
+                detectedObject.x2 = (x2 - paddingSize_.width())  / reductionRatio_.x();
+                detectedObject.y2 = (y2 - paddingSize_.height()) / reductionRatio_.y();
+                detectedObject.score = score;
+                detectedObject.index = index;
+                detectedObject.classifySize = classifyNames_.size();
+                detectedObject.name = classifyNames_[detections_[0][i][5].item<int>()];
+
+                detectedObjects_.append(detectedObject);
+            }
         }
+    }
+    else /* (modelVersion_ == 11) */
+    {
+        // ToDo
     }
 
     std::sort(detectedObjects_.begin(), detectedObjects_.end(),

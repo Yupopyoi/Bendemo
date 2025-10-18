@@ -2,7 +2,6 @@
 #ifndef YOLOEXECUTOR_H
 #define YOLOEXECUTOR_H
 
-#include <algorithm>
 #include <memory>
 
 #include <QCoreApplication>
@@ -28,10 +27,10 @@
 #include "darknessdetector.h"
 
 #ifndef MODEL_NAME
-#define MODEL_NAME         std::string("yolov10l.torchscript")
+#define MODEL_NAME         std::string("yolov10b.torchscript")
 #endif
 #ifndef CLASSIFY_YAML_PATH
-#define CLASSIFY_YAML_PATH std::string("yolov10.yaml")
+#define CLASSIFY_YAML_PATH std::string("yolov10_original.yaml")
 #endif
 #ifndef INPUT_EDGE_SIZE
 #define INPUT_EDGE_SIZE    640
@@ -74,6 +73,7 @@ private:
 private:
     // Torch
     std::unique_ptr<torch::jit::Module> model_{nullptr};
+    int modelVersion_;
 
     bool canUseCUDA_{false};
     bool isDetectionPermitted_{true};

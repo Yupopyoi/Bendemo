@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Outer Tube Vertical Movement Integrated Controller
     outerTubeVController = new IntegratedValueController(this, ui->verticalSliderOuter, ui->doubleSpinBoxVO, 0.5);
 
-    outerTubeVController->setRange(0, 270);
+    outerTubeVController->setRange(110, 160);
     outerTubeVController->setDecimals(1);
     double latestValueV = doubleFromBytes(latestSentSerialData, 0);
     if (latestValueV == std::numeric_limits<double>::quiet_NaN()) latestValueV = 135.0;
@@ -42,7 +42,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Outer Tube Horizontal Movement Integrated Controller
     outerTubeHController = new IntegratedValueController(this, ui->horizontalSliderOuter, ui->doubleSpinBoxHO, 0.5);
 
-    outerTubeHController->setRange(0, 270);
+    outerTubeHController->setRange(110, 160);
     outerTubeHController->setDecimals(1);
     double latestValueH = doubleFromBytes(latestSentSerialData, 2);
     if (latestValueH == std::numeric_limits<double>::quiet_NaN()) latestValueH = 135.0;
