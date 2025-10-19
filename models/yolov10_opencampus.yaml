@@ -1,6 +1,6 @@
 # Classes
 names:
-  0: Horse
+  0: Contrail
   1: bicycle
   2: car
   3: motorcycle
@@ -9,18 +9,18 @@ names:
   6: train
   7: truck
   8: boat
-  9: Horse
-  10: Horse
-  11: Horse
+  9: Contrail
+  10: Contrail
+  11: Contrail
   12: parking meter
   13: bench
   14: bird
-  15: Horse
-  16: Horse
+  15: Contrail
+  16: Contrail
   17: horse
   18: sheep
   19: cow
-  20: Horse
+  20: Contrail
   21: bear
   22: zebra
   23: giraffe
@@ -38,7 +38,7 @@ names:
   35: baseball glove
   36: skateboard
   37: surfboard
-  38: Horse
+  38: Contrail
   39: bottle
   40: wine glass
   41: cup
@@ -73,10 +73,10 @@ names:
   70: toaster
   71: sink
   72: refrigerator
-  73: Horse
+  73: Contrail
   74: clock
   75: vase
   76: scissors
-  77: Horse
+  77: Contrail
   78: hair drier
   79: toothbrush

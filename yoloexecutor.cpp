@@ -279,7 +279,7 @@ static torch::Tensor simple_nms(torch::Tensor boxes, torch::Tensor scores, float
         auto iou = inter / (areas[i] + areas.index({rest}) - inter + 1e-9);
 
         auto mask = iou <= iou_thr;        // (K-1) bool
-        order = rest.index({mask});        // 次へ
+        order = rest.index({mask});
     }
     return torch::from_blob(keep.data(), {(long long)keep.size()}, torch::TensorOptions().dtype(torch::kLong)).clone();
 }
@@ -300,6 +300,12 @@ void YoloExecutor::StoreDetectedObjects()
             {
                 DetectedObject detectedObject;
 
+                detectedObject.name = classifyNames_[detections_[0][i][5].item<int>()];
+                if(onlyHorse_)
+                {
+                    if(detectedObject.name != "Horse") continue;
+                }
+
                 auto x1 = detections_[0][i][0].item<float>();
                 auto y1 = detections_[0][i][1].item<float>();
                 auto x2 = detections_[0][i][2].item<float>();
@@ -313,7 +319,6 @@ void YoloExecutor::StoreDetectedObjects()
                 detectedObject.score = score;
                 detectedObject.index = index;
                 detectedObject.classifySize = classifyNames_.size();
-                detectedObject.name = classifyNames_[detections_[0][i][5].item<int>()];
 
                 detectedObjects_.append(detectedObject);
             }

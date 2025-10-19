@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QPointer>
+#include <QPushButton>
 
 class QSlider;
 class QDoubleSpinBox;
@@ -20,6 +21,7 @@ public:
     explicit IntegratedValueController(QObject* parent,
                                        QSlider* slider,
                                        QDoubleSpinBox* spin,
+                                       QPushButton* centerButton = nullptr,
                                        double step = 0.5);
 
     // --- Core API ---
@@ -53,6 +55,7 @@ private:
 private:
     QPointer<QSlider>        slider_;
     QPointer<QDoubleSpinBox> spin_;
+    QPointer<QPushButton> centerButton_;
 
     bool   updating_ = false;  // prevents recursive updates
     double min_ = 0.0;

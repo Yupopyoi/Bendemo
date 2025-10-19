@@ -51,7 +51,7 @@ private:
     bool enabled_ = true;
 
     // PID ゲイン
-    double Kp_ = 0.02;
+    double Kp_ = 0.01;
     double Ki_ = 0.00;
     double Kd_ = 0.00;
 

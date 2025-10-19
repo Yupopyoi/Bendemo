@@ -1,24 +1,26 @@
 #pragma once
 
-#include <QObject>
-#include <QImage>
-#include <QVector>
-#include <QSize>
 #include <QCameraDevice>
+#include <QDir>
+#include <QFileInfo>
+#include <QImage>
+#include <QObject>
+#include <QSize>
+#include <QVector>
 
 // Forward declarations
-class QGraphicsView;
+class QCamera;
+class QCheckBox;
+class QComboBox;
 class QGraphicsScene;
 class QGraphicsPixmapItem;
-class QMediaCaptureSession;
-class QVideoSink;
-class QMediaPlayer;
-class QCamera;
-class QComboBox;
+class QGraphicsView;
 class QLabel;
+class QMediaCaptureSession;
+class QMediaPlayer;
 class QPushButton;
-class QCheckBox;
 class QVideoFrame;
+class QVideoSink;
 
 class CameraDisplayer : public QObject
 {

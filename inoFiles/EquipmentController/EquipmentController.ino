@@ -12,11 +12,6 @@ uint8_t readDataBuffer_[INPUT_BUFFER_SIZE];
 const size_t OUTPUT_BUFFER_SIZE{ 22 };
 uint8_t writeDataBuffer_[OUTPUT_BUFFER_SIZE];
 
-// ----------------------------------------  ピン割当て ----------------------------------------
-
-
-
-
 // ----------------------------------------  サーボモーター ----------------------------------------
 
 #include <Servo.h>
@@ -27,16 +22,22 @@ static const int SERVO_PINS[kMotors] = {5, 6, 7, 8, 9, 10};
 
 ServoArrayController servos(kMotors);
 
-// ---------------------------------------- 接続確認カウンター ----------------------------------------
+// --------------------------------------- 接続確認カウンター ---------------------------------------
 
 uint8_t counter_{ 0 };
 uint8_t subcounter_{ 0 };
 
-// ---------------------------------------- IMU ----------------------------------------
+// ---------------------------------------------- IMU ----------------------------------------------
 
 #include "ImuComplementary.h"
 ImuComplementary imu(0x68, 0.98f);
 uint8_t rpyBytes[6];
+
+// ------------------------------------------ Power Guard ------------------------------------------
+
+#include "PowerGuard.h"
+PowerGuard guard;
+static const int POWER_GUARD_PIN = 4;
 
 //  ------------------------------------------------------------------------------------------------
 
@@ -45,10 +46,13 @@ void setup()
   setupMotors();
   serialComm.begin();
 
-  imu.begin(100000, 3, 9);
-  imu.setManualBiasPhysical(0.002f, 0.004f, -0.003f,  -0.191f, 0.237f, -0.046f);
-}
+  guard.begin(POWER_GUARD_PIN);
+  guard.setActivationCount(5);
+  guard.setTimeout(1000);
 
+  //imu.begin(100000, 3, 9);
+  //imu.setManualBiasPhysical(0.002f, 0.004f, -0.003f,  -0.191f, 0.237f, -0.046f);
+}
 
 void setupMotors()
 {
@@ -68,18 +72,21 @@ void setupMotors()
 
 void loop() 
 {
-  // 受信データがある場合
-  if (serialComm.isAvailable()) {
-    // データを受信してバッファに格納
+  guard.tick();  // Always call to monitor timeout
+
+  if (serialComm.isAvailable()) 
+  {
     size_t recievedLength = serialComm.receive(readDataBuffer_, INPUT_BUFFER_SIZE);
+    guard.ping();   // Notify the guard of communication
   }
 
-
+  /*
   if (imu.update()) 
   {
     imu.getRPYBytes(rpyBytes);
   }
-  
+  */
+
   OperateMotors();
 
   SerialWrite();

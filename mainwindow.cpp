@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     QByteArray latestSentSerialData = ReadLatestSentSerialData();
 
     // Outer Tube Vertical Movement Integrated Controller
-    outerTubeVController = new IntegratedValueController(this, ui->verticalSliderOuter, ui->doubleSpinBoxVO, 0.5);
+    outerTubeVController = new IntegratedValueController(this, ui->verticalSliderOuter, ui->doubleSpinBoxVO, ui->resetButtonOV, 0.5);
 
     outerTubeVController->setRange(110, 160);
     outerTubeVController->setDecimals(1);
@@ -40,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     outerTubeVController->setValue(latestValueV);
 
     // Outer Tube Horizontal Movement Integrated Controller
-    outerTubeHController = new IntegratedValueController(this, ui->horizontalSliderOuter, ui->doubleSpinBoxHO, 0.5);
+    outerTubeHController = new IntegratedValueController(this, ui->horizontalSliderOuter, ui->doubleSpinBoxHO, ui->resetButtonOH, 0.5);
 
     outerTubeHController->setRange(110, 160);
     outerTubeHController->setDecimals(1);
@@ -193,7 +193,7 @@ void MainWindow::setDifferenceLabel(double xDiff, double yDiff)
         ui->labelDiff->setText("Difference from the center : ---.- , ---.-");
         return;
     }
-    QString text = "Difference from the center : " + QString::number(xDiff, 'f', 1) + " , " + QString::number(yDiff, 'f', 1);
+    QString text = "Difference from the center x : " + QString::number(xDiff, 'f', 1) + " , y :  " + QString::number(yDiff, 'f', 1);
     ui->labelDiff->setText(text);
 }
 

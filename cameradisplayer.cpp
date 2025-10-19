@@ -213,7 +213,13 @@ void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
 void CameraDisplayer::SaveImage()
 {
     const QString ts = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
-    const QString fileName = "../SavedImages/" + ts + ".jpg";
+    const QString fileName = "./SavedImages/" + ts + ".jpg";
+
+    QFileInfo fi(fileName);
+    if (!QDir().mkpath(fi.absolutePath())) {
+        qWarning() << "[ERROR] Failed to create directory:" << fi.absolutePath();
+    }
+
     if (latestImage_.save(fileName, "JPG")) {
         qDebug() << "[INFO] Saved Image :" << fileName;
     } else {

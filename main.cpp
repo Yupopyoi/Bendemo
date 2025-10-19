@@ -13,8 +13,8 @@
 
 int main(int argc, char *argv[])
 {
-    qputenv("CUDA_LAUNCH_BLOCKING", "1");         // CUDA の非同期を止める
-    qputenv("TORCH_SHOW_CPP_STACKTRACES", "1");   // LibTorch の C++ stack を出す
+    qputenv("CUDA_LAUNCH_BLOCKING", "1");
+    qputenv("TORCH_SHOW_CPP_STACKTRACES", "1");
 
     QApplication app(argc, argv);
     MainWindow mainWindow;
@@ -46,11 +46,22 @@ int main(int argc, char *argv[])
                         mainWindow.setArduinoLogLabel(data, PortName, Baudrate);
                      });
 
+    // Send continuously at regular intervals.
+    // This allows the Arduino to confirm that communication with the Qt application has been established.
+    // If communication cannot be confirmed, the Arduino will physically disconnect the power circuit connected to the motor.
+    QTimer continuousSendTimer;
+    QObject::connect(&continuousSendTimer, &QTimer::timeout,
+                     [&serialInterface]()
+                     {
+                        serialInterface.Send();
+                     });
+    continuousSendTimer.start(500);
+
     // ===========================================    Auto Bender    ===========================================
 
     AutoBending autoBend;
     autoBend.setGains(1.0, 0.00, 0.01);
-    autoBend.setDeadband(2.0);
+    autoBend.setDeadband(50.0);
     autoBend.setOutputSaturation(2.0);
     autoBend.setDerivativeCutoffHz(5.0);
     autoBend.setGeometry(25.0, 25.0);
@@ -62,10 +73,10 @@ int main(int argc, char *argv[])
                      {
                          if (!mainWindow.canApply()) return;
 
-                         if (std::abs(addX_) > 0.0) mainWindow.addMotorValue(0, addX_);
-                         if (std::abs(addY_) > 0.0) mainWindow.addMotorValue(1, addY_);
+                         if (std::abs(addX_) > 0.0) mainWindow.addMotorValue(1 /* Horizontal */, addX_);
+                         if (std::abs(addY_) > 0.0) mainWindow.addMotorValue(0 /*  Vertical  */, addY_);
                      });
-    motorUpdateTimer.start(1000);
+    motorUpdateTimer.start(100);
 
 
     // =========================================== Center Difference Calculator ===========================================
@@ -79,11 +90,7 @@ int main(int argc, char *argv[])
                           double& differenceX,
                           double& differenceY) const
         {
-            if (results.isEmpty()) {
-                differenceX = std::nan("");
-                differenceY = std::nan("");
-                return 0.0;
-            }
+            if (results.size() == 0) return 0.0;
 
             const double reduceRatioX = static_cast<double>(canvasSize) / src.width();
             const double reduceRatioY = static_cast<double>(canvasSize) / src.height();

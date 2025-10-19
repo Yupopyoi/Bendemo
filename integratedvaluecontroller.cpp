@@ -8,8 +8,9 @@
 IntegratedValueController::IntegratedValueController(QObject* parent,
                                                      QSlider* slider,
                                                      QDoubleSpinBox* spin,
+                                                     QPushButton* centerButton,
                                                      double step)
-    : QObject(parent), slider_(slider), spin_(spin)
+    : QObject(parent), slider_(slider), spin_(spin), centerButton_(centerButton)
 {
     Q_ASSERT(slider_ && spin_);
     setSingleStep(step);   // initialize step & scale
@@ -25,6 +26,8 @@ IntegratedValueController::IntegratedValueController(QObject* parent,
             this,    &IntegratedValueController::onSliderChanged);
     connect(slider_, &QSlider::sliderReleased,
             this,    &IntegratedValueController::onSliderReleased);
+    connect(centerButton_, &QPushButton::pressed,
+            this,    [&](){setValue((min_ + max_) * 0.5);});
 }
 
 void IntegratedValueController::setRange(double min, double max)

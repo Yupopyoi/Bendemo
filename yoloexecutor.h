@@ -30,13 +30,13 @@
 #define MODEL_NAME         std::string("yolov10b.torchscript")
 #endif
 #ifndef CLASSIFY_YAML_PATH
-#define CLASSIFY_YAML_PATH std::string("yolov10_original.yaml")
+#define CLASSIFY_YAML_PATH std::string("yolov10.yaml")
 #endif
 #ifndef INPUT_EDGE_SIZE
 #define INPUT_EDGE_SIZE    640
 #endif
 #ifndef SCORE_THRESHOLD
-#define SCORE_THRESHOLD    0.25f
+#define SCORE_THRESHOLD    0.10f
 #endif
 
 class YoloExecutor : public QObject, public Detector
@@ -77,6 +77,8 @@ private:
 
     bool canUseCUDA_{false};
     bool isDetectionPermitted_{true};
+
+    bool onlyHorse_{true};
 
     QPointF reductionRatio_{1.f, 1.f};
     QSize   paddingSize_{0, 0};
