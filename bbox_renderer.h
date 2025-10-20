@@ -1,13 +1,13 @@
 #pragma once
-#include <QObject>
-#include <QGraphicsView>
-#include <QGraphicsScene>
-#include <QGraphicsPixmapItem>
 #include <QCheckBox>
-#include <QVector>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsScene>
+#include <QGraphicsView>
 #include <QImage>
-#include <QPixmap>
+#include <QObject>
 #include <QPainter>
+#include <QPixmap>
+#include <QVector>
 
 #include "darknessdetector.h" // DetectedObject
 

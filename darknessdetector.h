@@ -2,11 +2,13 @@
 #define DARKNESSDETECTOR_H
 
 #pragma once
-#include <QObject>
+#include <QDebug>
 #include <QImage>
-#include <QVector>
-#include <QThread>
+#include <QMetaObject>
+#include <QObject>
 #include <QString>
+#include <QThread>
+#include <QVector>
 
 // ---- OpenCV forward decl to keep the header light ----
 namespace cv { class Mat; }
@@ -42,7 +44,7 @@ public:
     // ---------- Synchronous API ----------
     QVector<DetectedObject> detect(const QImage& image,
                                    float minAreaRatio = 0.01f,
-                                   int blackThreshold = 30,
+                                   int blackThreshold = 40,
                                    int whiteMaskTopPct = 0,
                                    int whiteMaskRightLeftPct = 0) const;
 
@@ -59,7 +61,9 @@ public:
 signals:
     // Emitted on the UI thread side because we use QueuedConnection by default.
     // results[0] is the black area with the largest area.
-    void detectionReady(QVector<DetectedObject> results, QImage source, float scaleX, float scaleY);
+    void detectionReady(const ::QVector<Detector::DetectedObject>& results,
+                        const ::QImage& source,
+                        float scaleX, float scaleY);
 
 private:
     // ---- Internal helpers (implemented in .cpp) ----

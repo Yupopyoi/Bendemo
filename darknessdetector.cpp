@@ -1,6 +1,4 @@
 #include "DarknessDetector.h"
-#include <QMetaObject>
-#include <QDebug>
 
 // OpenCV
 #include <opencv2/imgproc.hpp>

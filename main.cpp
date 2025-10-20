@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
     auto darknessDetector = new DarknessDetector(nullptr);
 
     darknessDetector->setMinAreaRatio(0.02f);
-    darknessDetector->setBlackThreshold(40);
+    darknessDetector->setBlackThreshold(50);
     darknessDetector->setWhiteMask(5, 3);
 
     darknessDetector->start();
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
                         }
 
                         // Calculate the difference in image center coordinates
-                        double differenceX, differenceY;
+                        double differenceX = 0.0, differenceY = 0.0;
                         calculator(results, src, 0, mainWindow.CanvasSize(), differenceX, differenceY);
 
                         mainWindow.setDifferenceLabel(differenceX, differenceY);
@@ -160,7 +160,8 @@ int main(int argc, char *argv[])
                         }
                     });
 
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, [&](){
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [&darknessDetector]()
+    {
         darknessDetector->stop();
     });
 

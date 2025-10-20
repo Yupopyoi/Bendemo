@@ -49,7 +49,7 @@ QString SerialInterface::port()
 {
     QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
 
-    for (const QSerialPortInfo &info : ports)
+    for (const QSerialPortInfo &info : std::as_const(ports))
     {
         QString desc = info.description().toLower();
         QString manu = info.manufacturer().toLower();

@@ -3,6 +3,7 @@
 
 #include <QDebug>
 #include <QElapsedTimer>
+
 #include <algorithm>
 
 #define _USE_MATH_DEFINES

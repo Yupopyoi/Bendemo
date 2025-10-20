@@ -1,26 +1,5 @@
 #include "CameraDisplayer.h"
 
-#include <QCamera>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QDateTime>
-#include <QDebug>
-#include <QGraphicsView>
-#include <QGraphicsScene>
-#include <QGraphicsPixmapItem>
-#include <QImage>
-#include <QLabel>
-#include <QMediaCaptureSession>
-#include <QMediaDevices>
-#include <QMediaPlayer>
-#include <QOpenGLWidget>
-#include <QPainter>
-#include <QPixmap>
-#include <QPushButton>
-#include <QTransform>
-#include <QVideoFrame>
-#include <QVideoSink>
-
 #include <algorithm>
 #include <numeric>
 
@@ -104,13 +83,9 @@ CameraDisplayer::~CameraDisplayer()
     }
 }
 
-void CameraDisplayer::onVideoFrame(const QVideoFrame& frame)
+void CameraDisplayer::onVideoFrame(const QImage& img)
 {
-    if (!frame.isValid()) return;
-    QImage img = frame.toImage();
     if (img.isNull()) return;
-
-    if (isReversing_) img = img.mirrored(true, false);
 
     emit frameReady(img);
 }
@@ -154,28 +129,57 @@ void CameraDisplayer::ListCameraDevices()
 {
     cameras_ = QMediaDevices::videoInputs();
 
-    deviceComboBox_->blockSignals(true);
+    QSignalBlocker blocker(deviceComboBox_);
     deviceComboBox_->clear();
     deviceComboBox_->addItem("Select Camera Device or Video");
-    for (const QCameraDevice& cam : cameras_) {
+    for (const QCameraDevice& cam : std::as_const(cameras_))
+    {
         deviceComboBox_->addItem(cam.description());
     }
     deviceComboBox_->blockSignals(false);
+}
+
+// ---- QImage <-> cv::Mat  ----
+static cv::Mat qimageToBGR(const QImage& src)
+{
+    QImage q = src.convertToFormat(QImage::Format_RGB888);
+    cv::Mat mat(q.height(), q.width(), CV_8UC3,
+                const_cast<uchar*>(q.bits()), q.bytesPerLine());
+    cv::Mat bgr; cv::cvtColor(mat, bgr, cv::COLOR_RGB2BGR);
+    return bgr.clone();
+}
+
+// ---- RGB Gain ----
+static cv::Mat applyRGBGain(const cv::Mat& bgr, double bGain, double gGain, double rGain)
+{
+    cv::Matx33d G( bGain, 0, 0,
+                  0, gGain, 0,
+                  0, 0, rGain );
+    cv::Mat out; cv::transform(bgr, out, G);
+    cv::min(out, 255, out); out.convertTo(out, CV_8U);
+    return out;
+}
+
+static QImage bgrToQImage(const cv::Mat& bgr)
+{
+    cv::Mat rgb; cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
+    return QImage(rgb.data, rgb.cols, rgb.rows, (int)rgb.step,
+                  QImage::Format_RGB888).copy();
 }
 
 void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
 {
     QVideoFrame f(frame);
 
-    emit onVideoFrame(f);
-
     if (!f.isValid()) return;
 
     QImage img;
-    if (f.map(QVideoFrame::ReadOnly)) {
+    if (f.map(QVideoFrame::ReadOnly))
+    {
         const QImage::Format fmt = QVideoFrameFormat::imageFormatFromPixelFormat(f.pixelFormat());
-        if (fmt != QImage::Format_Invalid) {
-            img = QImage(f.bits(0), f.width(), f.height(), f.bytesPerLine(0), fmt).copy(); // ★安全のため最小コピー
+        if (fmt != QImage::Format_Invalid)
+        {
+            img = QImage(f.bits(0), f.width(), f.height(), f.bytesPerLine(0), fmt).copy();
         }
         f.unmap();
     }
@@ -185,11 +189,24 @@ void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
 
     if (img.isNull()) return;
 
-    if (isReversing_) img = img.mirrored(true, false);
+    if (isReversing_) img = img.flipped(Qt::Orientations(true));
 
     const int angleDegrees = 0;
-    if (angleDegrees % 360 != 0) {
+    if (angleDegrees % 360 != 0)
+    {
         img = rotateImageWithWhiteBackground(img, angleDegrees);
+    }
+
+    // Image Processing & Emitting
+    {
+        cv::Mat bgr = qimageToBGR(img);
+
+        bgr = applyRGBGain(bgr, bGain_, gGain_, rGain_);
+
+        img = bgrToQImage(bgr);
+
+        onVideoFrame(img);
+        latestImage_ = img;
     }
 
     QPixmap pix = QPixmap::fromImage(img);
@@ -203,8 +220,6 @@ void CameraDisplayer::ProcessVideoFrame(const QVideoFrame& frame)
     videoPixmapItem_->setScale(scale);
     videoPixmapItem_->setPos(0, 0);
     videoPixmapItem_->setOffset(-pix.width() / 2.0, -pix.height() / 2.0);
-
-    latestImage_ = img;
 
     scaleX_ = float(scale);
     scaleY_ = float(scale);

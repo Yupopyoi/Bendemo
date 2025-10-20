@@ -1,12 +1,33 @@
 #pragma once
 
+#include <QCamera>
 #include <QCameraDevice>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
+#include <QGraphicsView>
+#include <QGraphicsScene>
+#include <QGraphicsPixmapItem>
 #include <QImage>
+#include <QLabel>
+#include <QMediaCaptureSession>
+#include <QMediaDevices>
+#include <QMediaPlayer>
 #include <QObject>
+#include <QOpenGLWidget>
+#include <QPainter>
+#include <QPixmap>
+#include <QPushButton>
+#include <QTransform>
 #include <QSize>
 #include <QVector>
+#include <QVideoFrame>
+#include <QVideoSink>
+
+#include <opencv2/opencv.hpp>
 
 // Forward declarations
 class QCamera;
@@ -51,7 +72,7 @@ signals:
 private slots:
     // Called by QVideoSink for each new frame
     void ProcessVideoFrame(const QVideoFrame& frame);
-    void onVideoFrame(const QVideoFrame& frame);
+    void onVideoFrame(const QImage& img);
 
     // Save the latest frame as jpg
     void SaveImage();
@@ -80,6 +101,11 @@ private:
     QVideoSink*           videoSink_      = nullptr;
     QMediaPlayer*         videoPlayer_    = nullptr;
     QCamera*              camera_         = nullptr;
+
+    // Color Gain (RGB)
+    float rGain_ {0.80};
+    float gGain_ {1.00};
+    float bGain_ {1.00};
 
     // State
     QVector<QCameraDevice> cameras_;
